@@ -1,30 +1,56 @@
 /* ===================== UI: catalog & maker ===================== */
-import { PRESETS, CATS, SECTION_LABEL } from './config.js';
+import { BAR, SECTION_LABEL } from './config.js';
+import { GROUPS, GROUP_LABEL, groupOf } from './catalog.js';
 import { $, clamp, r1, newId, rgbToHex } from './util.js';
 import { state, catMap, current, sel, setSel, getDef, isCustom, isEditedPreset, rebuildCatalog, sectionSize } from './state.js';
 import { findSpot } from './fit.js';
 import { drawItem } from './draw.js';
 import { pushHistory, commit, toast } from './pipeline.js';
 
+// The picker: a search box and a category filter narrow down a grouped list.
+// There are ~800 items, too many to scroll through in a plain dropdown.
+const pickable = () => [...catMap.values()].filter(d => !d.missing);
+const matches = (d, q) => !q || d.name.toLowerCase().includes(q);
+const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity:'base', numeric:true });
+
 export function buildSelect(keep){
-  const s = $('#itemSelect'); keep = keep || s.value; s.innerHTML = '';
-  for (const [cat, label] of CATS){
-    const g = document.createElement('optgroup'); g.label = label;
-    for (const d of catMap.values()) if (d.cat === cat) g.append(new Option(d.name + (isCustom(d.id) ? ' (yours)' : ''), d.id));
-    s.append(g);
+  const s = $('#itemSelect'), cs = $('#itemCat'); keep = keep || s.value;
+  const q = $('#itemSearch').value.trim().toLowerCase(), all = pickable();
+  const groups = new Map(GROUPS.map(([g]) => [g, []]));
+  for (const d of all) groups.get(groupOf(d)).push(d);
+
+  // Category options, with counts. Empty groups are left out.
+  const cat = cs.value || 'all'; cs.innerHTML = '';
+  cs.append(new Option(`Everything (${all.length})`, 'all'));
+  for (const [g, label] of GROUPS) if (groups.get(g).length) cs.append(new Option(`${label} (${groups.get(g).length})`, g));
+  cs.value = [...cs.options].some(o => o.value === cat) ? cat : 'all';
+
+  s.innerHTML = ''; let shown = 0;
+  for (const [g, label] of GROUPS){
+    if (cs.value !== 'all' && cs.value !== g) continue;
+    const list = groups.get(g).filter(d => matches(d, q)).sort(byName);
+    if (!list.length) continue;
+    const og = document.createElement('optgroup'); og.label = label;
+    for (const d of list) og.append(new Option(d.name + (isEditedPreset(d.id) ? ' (edited)' : ''), d.id));
+    s.append(og); shown += list.length;
   }
-  const g = document.createElement('optgroup'); g.label = 'Something else';
-  g.append(new Option('Make your own…', '__new')); s.append(g);
-  s.value = (keep && (catMap.has(keep) || keep === '__new')) ? keep : PRESETS[0].id;
+  $('#itemCount').textContent = shown ? `${shown} ${shown === 1 ? 'match' : 'matches'}` : 'Nothing matches. Try another word, or make your own.';
+  const ids = [...s.options].map(o => o.value);
+  s.value = ids.includes(keep) ? keep : (ids[0] ?? '');
   showChosen();
 }
 export function chosenDef(){ return getDef($('#itemSelect').value); }
 function showChosen(){
-  const v = $('#itemSelect').value;
-  if (v === '__new'){ openMaker(null); return; }
-  const d = getDef(v); if (!d) return;
+  const d = getDef($('#itemSelect').value);
+  if (!d){
+    if (!$('#maker').hidden && maker.editing) closeMaker(false);
+    if ($('#maker').hidden){ for (const id of ['pvName', 'pvSize', 'pvCat', 'pvNote']) $('#' + id).textContent = ''; drawPreview(null); }
+    $('#btnAdd').disabled = true; $('#btnEditItem').hidden = true; $('#btnDeleteItem').hidden = true;
+    return;
+  }
   $('#pvName').textContent = d.name;
   $('#pvSize').textContent = `${r1(d.w)} × ${r1(d.h)} cm`;
+  $('#pvCat').textContent = GROUP_LABEL[groupOf(d)];
   $('#pvNote').textContent = d.note || '';
   $('#btnDeleteItem').textContent = isCustom(d.id) ? 'Delete item' : 'Reset to default';
   $('#btnDeleteItem').hidden = !isCustom(d.id) && !isEditedPreset(d.id);
@@ -43,12 +69,22 @@ export function drawPreview(d){
   drawItem(ctx, d, d.text, (r.width - d.w*k)/2, (r.height - d.h*k)/2, d.w*k, d.h*k);
 }
 $('#itemSelect').addEventListener('change', showChosen);
+$('#itemCat').addEventListener('change', () => buildSelect());
+$('#itemSearch').addEventListener('input', () => buildSelect());
+// Enter adds the highlighted item; Down arrow moves from the search box into the list.
+$('#itemSearch').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown'){ e.preventDefault(); $('#itemSelect').focus(); }
+  else if (e.key === 'Enter'){ e.preventDefault(); $('#btnAdd').click(); }
+});
+$('#itemSelect').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); $('#btnAdd').click(); } });
+$('#itemSelect').addEventListener('dblclick', e => { if (e.target.tagName === 'OPTION') $('#btnAdd').click(); });
+$('#btnMake').onclick = () => openMaker(null);
 
 const maker = { editing:null, photo:null };
 const mk = id => $('#' + id);
 function openMaker(def){
   maker.editing = def ? def.id : null;
-  const d = def || { cat:'bar', name:'', text:'', w:10, h:2.5, shape:'rect', bg:'#002452', fg:'#FFFFFF', border:'#EAAA00', note:'' };
+  const d = def || { cat:'bar', name:'', text:'', ...BAR, note:'' };
   $('#makerTitle').textContent = def ? `Edit ${def.name}` : 'Make your own';
   mk('mkCat').value = d.cat; mk('mkShape').value = d.shape || 'rect'; mk('mkName').value = d.name; mk('mkText').value = d.text || '';
   mk('mkW').value = d.w; mk('mkH').value = d.h; mk('mkBg').value = rgbToHex(d.bg || '#ffffff'); mk('mkFg').value = rgbToHex(d.fg || '#000000'); mk('mkBorder').value = rgbToHex(d.border || d.fg || '#000000');
@@ -60,12 +96,12 @@ function openMaker(def){
   maker.flagKeep = (f.type === 'canada' || f.type === 'disc') ? f : null;
   maker.photo = d.img || null; mk('mkPhoto').value = '';
   $('#maker').hidden = false; $('#btnEditItem').hidden = true;
-  if (!def){ $('#pvName').textContent = 'New item'; $('#pvSize').textContent = ''; $('#pvNote').textContent = ''; $('#btnDeleteItem').hidden = true; $('#btnAdd').disabled = true; }
+  if (!def){ $('#pvName').textContent = 'New item'; $('#pvSize').textContent = ''; $('#pvCat').textContent = ''; $('#pvNote').textContent = ''; $('#btnDeleteItem').hidden = true; $('#btnAdd').disabled = true; }
   syncMaker(); mk('mkName').focus();
 }
 function closeMaker(restore = true){
   $('#maker').hidden = true; maker.editing = null; $('#btnEditItem').hidden = false;
-  if (restore){ if ($('#itemSelect').value === '__new') $('#itemSelect').value = PRESETS[0].id; showChosen(); }
+  if (restore) showChosen();
 }
 function readMaker(){
   const dir = mk('mkFlagDir').value, n = +mk('mkFlagN').value;
@@ -101,7 +137,8 @@ mk('mkSave').onclick = () => {
   pushHistory();
   const i = state.items.findIndex(x => x.id === d.id);
   if (i >= 0) state.items[i] = d; else state.items.push(d);
-  rebuildCatalog(); closeMaker(false); buildSelect(d.id);
+  rebuildCatalog(); closeMaker(false);
+  $('#itemSearch').value = ''; $('#itemCat').value = 'all'; buildSelect(d.id); // so the saved item is visible
   toast(wasEditing ? 'Item saved.' : `Saved ${d.name}.`);
   commit();
 };

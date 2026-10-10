@@ -79,14 +79,15 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
 
 | File | Contents |
 |---|---|
-| `config.js` | Default measurements, `PRESETS`, section names, constants |
+| `config.js` | Default measurements, `BAR` (standard bar size and colours), `PRESETS`, section names, constants |
+| `catalog.js` | `BUILTINS` (presets plus every sheet bar), picker `GROUPS`, `groupOf`, `RENAMED_IDS`. No DOM. |
 | `util.js` | Small helpers (`$`, `clamp`, colour functions) |
 | `state.js` | State, `normalize`, catalogue, section geometry, no-go zones. No DOM. |
 | `fit.js` | `boxesClash`, `conflicts`, `findSpot`. No DOM. |
 | `draw.js` | `drawItem`, `drawPanel` (the single renderer) |
 | `editor2d.js` | Cutting-mat editor: layout, drawing, drag, keyboard |
 | `jacket3d.js` | three.js scene, textures, camera, picking |
-| `catalog-ui.js` | Item picker, preview, "make your own" form, Add |
+| `catalog-ui.js` | Item picker (search, category filter, grouped list), preview, "make your own" form, Add |
 | `panels.js` | Section tabs, inspector, space meters, jacket-size dialog |
 | `pipeline.js` | `commit` / `liveUpdate` / redraw, undo stack, toast |
 | `storage.js` | `localStorage` save and load |
@@ -135,8 +136,11 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
   img?: dataURL }
 ```
 
-- **Catalog:** `catMap` is the built-in `PRESETS` merged with `state.items`. It is rebuilt by `rebuildCatalog()`.
-- **Custom ids** start with `c-`. Editing a preset stores an override that has the preset's id.
+- **Catalog:** `catMap` is `BUILTINS` (the `PRESETS` plus every bar in `data/bars.xlsx`) merged with `state.items`. It is rebuilt by `rebuildCatalog()`.
+- **Sheet bar ids** are `wiki-<pageid>`, so renaming a bar in the sheet keeps it on saved jackets. Sheet bars carry `type` (the sheet's type column), which decides their picker group.
+- **Custom ids** start with `c-`. Editing a built-in stores an override that has the built-in's id.
+- **Missing items:** if a placement's item is gone (e.g. a bar later set to `include = no`), `rebuildCatalog()` gives it a stand-in "Bar no longer in the list" def instead of deleting the placement.
+- **Moved presets:** `RENAMED_IDS` maps old preset ids to their sheet id (`bar-wizard` → `wiki-2095`, `patch-engsoc` → `wiki-2064`); `normalize()` applies it.
 - **Loading:** saved data always goes through `normalize()`. If you change the schema:
   - Bump `v`.
   - Add a migration in `normalize()`.
@@ -201,7 +205,7 @@ The visual direction is a green self-healing cutting mat with a cm grid as the w
 
 ## Known placeholders and limitations
 
-- **The app's presets are still the old guesses.** They use 10 × 2.5 cm rectangles, made-up colours, an EngSoc crest, and the pass crest "on the shoulder". The real sizes, layout and bar list are written down above and in `data/bars.xlsx`, but the app doesn't use any of them yet.
+- **The bar list comes from `data/bars.xlsx`.** All bars are flat 12.1 × 2.9 cm rectangles in royal blue / red / gold for now; the curve isn't drawn, and fit checks use the flat box. Patches, flags, mottos and the pass crest are still the old guesses (sizes, a circular pass crest). Sheet rows that are really patches, such as EngSoc Crest, draw as bars for now..
   - Default text like "29" and "COMPUTER" is illustrative.
   - Get real data from Nathaniel. Don't make up more traditions.
 - **Crests are generic placeholder drawings.** Don't recreate the real Queen's or EngSoc logos (they're trademarked). Users can upload a photo of their own patch instead.
@@ -216,10 +220,9 @@ The visual direction is a green self-healing cutting mat with a cm grid as the w
 Confirm priorities with Nathaniel first.
 
 1. **Real bar catalogue and layout.** `data/bars.xlsx` exists and loads at build time, and Nathaniel is classifying it. Next steps:
-   - Use it in the picker, with a category filter (781 bars is too many for a plain dropdown).
-   - Curved bars at the real size.
+   - Done: the picker uses it (search plus category filter), bars are the real flat size, and the not-affiliated disclaimer is in the footer.
+   - Curved bars, plus real shapes and sizes for mottos, the pass crest and flags.
    - Reserved spots for the traditional layout, with the fixed QUEEN'S/APPLIED/SCIENCE block.
-   - The not-affiliated disclaimer.
 2. **Status per item.** Earned, working on it, or wishlist. Summaries like "what fits if I earn everything on my wishlist".
 3. **Custom no-go zones.** Let the user draw pockets or areas to keep clear.
 4. **Smarter auto-arrange.** A packing or optimisation pass that fits a chosen set of items into a section, respecting traditional placements and preferred groupings. This is a self-contained algorithms problem that suits Nathaniel.

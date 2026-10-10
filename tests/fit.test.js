@@ -7,8 +7,8 @@ function load(plan){
   setState(normalize({ v:1, ...plan }));
   rebuildCatalog();
 }
-// The Wizard preset is 10 × 2.5 cm.
-const wizard = (uid, x, y, section = 'front') => ({ uid, item:'bar-wizard', section, x, y, rot:0 });
+// The Blank bar preset is a standard 12.1 × 2.9 cm bar.
+const bar = (uid, x, y, section = 'front') => ({ uid, item:'bar-blank', section, x, y, rot:0 });
 
 describe('boxesClash', () => {
   const a = { x:0, y:0, w:10, h:2 };
@@ -22,31 +22,31 @@ describe('conflicts', () => {
   beforeEach(() => load({ placed:[] }));
 
   it('is empty for a single bar in open space', () => {
-    load({ placed:[wizard('a', 2, 5)] });
+    load({ placed:[bar('a', 2, 5)] });
     expect(conflicts('front').size).toBe(0);
   });
   it('flags both bars when they overlap', () => {
-    load({ placed:[wizard('a', 2, 5), wizard('b', 4, 6)] });
+    load({ placed:[bar('a', 2, 5), bar('b', 4, 6)] });
     const bad = conflicts('front');
-    expect(bad.get('a')).toBe('Overlaps Wizard');
-    expect(bad.get('b')).toBe('Overlaps Wizard');
+    expect(bad.get('a')).toBe('Overlaps Blank bar');
+    expect(bad.get('b')).toBe('Overlaps Blank bar');
   });
   it('flags bars closer than the minimum gap', () => {
-    load({ placed:[wizard('a', 2, 5), wizard('b', 2, 7.6)] }); // 0.1 cm apart, gap is 0.3
+    load({ placed:[bar('a', 2, 5), bar('b', 2, 8)] }); // 0.1 cm apart, gap is 0.3
     expect(conflicts('front').get('b')).toMatch(/^Closer than 0.3 cm/);
   });
   it('flags a bar hanging off the edge', () => {
     const { w } = sectionSize('front');
-    load({ placed:[wizard('a', w - 5, 5)] });
+    load({ placed:[bar('a', w - 5, 5)] });
     expect(conflicts('front').get('a')).toBe('Hangs off the edge of the panel');
   });
   it('flags a bar covering the zipper', () => {
     const zip = noGoZones('front').find(z => z.kind === 'zip');
-    load({ placed:[wizard('a', zip.x - 5, 5)] });
+    load({ placed:[bar('a', zip.x - 5, 5)] });
     expect(conflicts('front').get('a')).toBe('Covers the zipper');
   });
   it('only checks the section asked for', () => {
-    load({ placed:[wizard('a', 2, 5, 'back'), wizard('b', 4, 6, 'back')] });
+    load({ placed:[bar('a', 2, 5, 'back'), bar('b', 4, 6, 'back')] });
     expect(conflicts('front').size).toBe(0);
     expect(conflicts('back').size).toBe(2);
   });
@@ -54,9 +54,9 @@ describe('conflicts', () => {
 
 describe('findSpot', () => {
   it('finds a spot that does not conflict with anything', () => {
-    load({ placed:[wizard('a', 2, 5, 'back')] });
-    const spot = findSpot('back', 10, 2.5);
-    load({ placed:[wizard('a', 2, 5, 'back'), wizard('b', spot.x, spot.y, 'back')] });
+    load({ placed:[bar('a', 2, 5, 'back')] });
+    const spot = findSpot('back', 12.1, 2.9);
+    load({ placed:[bar('a', 2, 5, 'back'), bar('b', spot.x, spot.y, 'back')] });
     expect(conflicts('back').size).toBe(0);
   });
   it('returns null when nothing fits', () => {

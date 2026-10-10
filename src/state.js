@@ -4,7 +4,8 @@
 // Other modules read `state`, `catMap`, `current` and `sel` directly and always
 // see the latest value (ES module bindings are live). To replace one, call its
 // setter; you can't assign to an imported variable.
-import { DEFAULT_MEAS, DEFAULT_JACKET, PRESETS, SECTIONS } from './config.js';
+import { DEFAULT_MEAS, DEFAULT_JACKET, SECTIONS } from './config.js';
+import { BUILTINS, RENAMED_IDS, missingDef } from './catalog.js';
 
 export let state = freshState();
 export let catMap = new Map();
@@ -15,7 +16,7 @@ export const setState = s => { state = s; };
 export const setCurrent = s => { current = s; };
 export const setSel = uid => { sel = uid; };
 
-const PRESET_IDS = new Set(PRESETS.map(p => p.id));
+const PRESET_IDS = new Set(BUILTINS.map(p => p.id));
 
 export function freshState(){
   return { v:1, updatedAt:0, meas:{...DEFAULT_MEAS}, jacket:{...DEFAULT_JACKET}, items:[], placed:[] };
@@ -26,14 +27,16 @@ export function normalize(raw){
   s.updatedAt = +raw.updatedAt || 0;
   if (raw.meas) for (const k of Object.keys(DEFAULT_MEAS)) if (isFinite(+raw.meas[k])) s.meas[k] = +raw.meas[k];
   if (raw.jacket){ if (/^#[0-9a-f]{6}$/i.test(raw.jacket.color)) s.jacket.color = raw.jacket.color; if (/^#[0-9a-f]{6}$/i.test(raw.jacket.lining)) s.jacket.lining = raw.jacket.lining; }
-  if (Array.isArray(raw.items)) s.items = raw.items.filter(d => d && d.id && isFinite(+d.w) && isFinite(+d.h)).map(d => ({...d, w:+d.w, h:+d.h}));
-  if (Array.isArray(raw.placed)) s.placed = raw.placed.filter(p => p && p.uid && SECTIONS.includes(p.section)).map(p => ({ uid:String(p.uid), item:String(p.item), section:p.section, x:+p.x||0, y:+p.y||0, rot: (+p.rot===90)?90:0, text: typeof p.text === 'string' ? p.text : null }));
+  // Presets that moved into the sheet keep their placements and edits under the new id.
+  const id = x => RENAMED_IDS[x] || String(x);
+  if (Array.isArray(raw.items)) s.items = raw.items.filter(d => d && d.id && isFinite(+d.w) && isFinite(+d.h)).map(d => ({...d, id:id(d.id), w:+d.w, h:+d.h}));
+  if (Array.isArray(raw.placed)) s.placed = raw.placed.filter(p => p && p.uid && SECTIONS.includes(p.section)).map(p => ({ uid:String(p.uid), item:id(p.item), section:p.section, x:+p.x||0, y:+p.y||0, rot: (+p.rot===90)?90:0, text: typeof p.text === 'string' ? p.text : null }));
   return s;
 }
 export function rebuildCatalog(){
-  catMap = new Map(PRESETS.map(p => [p.id, {...p}]));
+  catMap = new Map(BUILTINS.map(p => [p.id, {...p}]));
   for (const it of state.items) catMap.set(it.id, {...it});
-  state.placed = state.placed.filter(p => catMap.has(p.item));
+  for (const p of state.placed) if (!catMap.has(p.item)) catMap.set(p.item, missingDef(p.item));
 }
 export const getDef = id => catMap.get(id);
 export const isCustom = id => !PRESET_IDS.has(id);

@@ -59,3 +59,23 @@ test('adding, overlapping, undoing and reloading a plan', async ({ page }, info)
   await expect(page.locator('.tab[data-s="front"] .count')).toHaveText('2');
   expect(info.errors).toEqual([]);
 });
+
+test('searching and filtering the bar list', async ({ page }, info) => {
+  await expect(page.locator('.site-foot')).toContainText("Not affiliated with or endorsed by Queen's University");
+  const list = page.locator('#itemSelect');
+  expect(await list.locator('option').count()).toBeGreaterThan(500); // the sheet's bars are all there
+
+  await page.locator('#itemSearch').fill('iron throne');
+  await expect(list.locator('option')).toHaveText(['Iron Throne']);
+  await expect(page.locator('#pvName')).toHaveText('Iron Throne');
+  await page.locator('#itemSearch').press('Enter'); // Enter adds it
+  await expect(page.locator('#inspector strong')).toHaveText('Iron Throne');
+
+  await page.locator('#itemSearch').fill('');
+  await page.locator('#itemCat').selectOption('flag');
+  await expect(list.locator('optgroup')).toHaveAttribute('label', 'Flags');
+
+  await page.locator('#itemSearch').fill('zzzz no such bar');
+  await expect(page.locator('#btnAdd')).toBeDisabled();
+  expect(info.errors).toEqual([]);
+});

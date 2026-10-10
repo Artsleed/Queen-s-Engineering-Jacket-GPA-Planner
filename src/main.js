@@ -1,5 +1,4 @@
 /* ===================== Start ===================== */
-import { PRESETS } from './config.js';
 import { $ } from './util.js';
 import { setState, normalize, rebuildCatalog } from './state.js';
 import { setImageLoadHandler } from './draw.js';
@@ -14,7 +13,7 @@ import './io.js';
 function start(){
   const local = loadLocal(); if (local) setState(normalize(local));
   setImageLoadHandler(redrawEverything);
-  rebuildCatalog(); buildTabs(); buildSelect(PRESETS[0].id);
+  rebuildCatalog(); buildTabs(); buildSelect();
   init3D();
   layoutEditor(); redrawEverything(); updateUndo();
   setSaveState(local ? 'Saved in this browser' : '');
