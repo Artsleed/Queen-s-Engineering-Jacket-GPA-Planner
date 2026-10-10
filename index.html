@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GPA Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Graduate&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>GPA Planner</h1>
+    <p>Lay out every bar and patch before anything gets sewn.</p>
+  </div>
+  <div class="top-actions">
+    <span class="save-state" id="saveState" role="status"></span>
+    <button class="btn" id="btnMeasure">Jacket size</button>
+    <button class="btn" id="btnExport">Export</button>
+    <button class="btn" id="btnImport">Import</button>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+  </div>
+</header>
+<div class="tricolour" aria-hidden="true"></div>
+
+<main class="layout">
+  <section class="pane catalog" aria-labelledby="catTitle">
+    <h2 id="catTitle">Add to the jacket</h2>
+    <label class="field"><span>Bar, patch or flag</span>
+      <select id="itemSelect"></select>
+    </label>
+    <div class="preview">
+      <canvas id="itemPreview" aria-hidden="true"></canvas>
+      <div class="meta"><strong id="pvName"></strong><span class="small muted" id="pvSize"></span><p id="pvNote"></p></div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="btnAdd" style="flex:1">Add to front</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" id="btnEditItem">Edit item</button>
+      <button class="btn danger" id="btnDeleteItem">Delete item</button>
+    </div>
+
+    <div class="maker" id="maker" hidden>
+      <h3 id="makerTitle">Make your own</h3>
+      <div class="grid2">
+        <label class="field"><span>Kind</span>
+          <select id="mkCat"><option value="bar">Bar</option><option value="patch">Patch</option><option value="flag">Flag</option></select>
+        </label>
+        <label class="field"><span>Shape</span>
+          <select id="mkShape"><option value="rect">Rectangle</option><option value="round">Rounded</option><option value="circle">Circle</option><option value="shield">Shield</option><option value="text">Letters only</option></select>
+        </label>
+      </div>
+      <label class="field"><span>Name in the list</span><input type="text" id="mkName" maxlength="40" placeholder="e.g. Iron ring"></label>
+      <label class="field"><span>Text on it</span><input type="text" id="mkText" maxlength="24" placeholder="Leave blank for none"></label>
+      <div class="grid2">
+        <label class="field"><span>Width (cm)</span><input type="number" id="mkW" min="0.5" max="60" step="0.1"></label>
+        <label class="field"><span>Height (cm)</span><input type="number" id="mkH" min="0.5" max="60" step="0.1"></label>
+      </div>
+      <div class="grid3">
+        <label class="field"><span>Background</span><input type="color" id="mkBg"></label>
+        <label class="field"><span>Text</span><input type="color" id="mkFg"></label>
+        <label class="field"><span>Edge</span><input type="color" id="mkBorder"></label>
+      </div>
+      <div class="flag-opts" id="flagOpts">
+        <div class="grid2">
+          <label class="field"><span>Stripes</span>
+            <select id="mkFlagDir"><option value="">None</option><option value="h">Horizontal</option><option value="v">Vertical</option></select>
+          </label>
+          <label class="field"><span>Stripe count</span>
+            <select id="mkFlagN"><option value="2">2</option><option value="3">3</option></select>
+          </label>
+        </div>
+        <div class="grid3">
+          <label class="field"><span>Stripe 1</span><input type="color" id="mkF1"></label>
+          <label class="field"><span>Stripe 2</span><input type="color" id="mkF2"></label>
+          <label class="field" id="mkF3wrap"><span>Stripe 3</span><input type="color" id="mkF3"></label>
+        </div>
+      </div>
+      <label class="field"><span>Photo of the real one (optional)</span><input type="file" id="mkPhoto" accept="image/*"></label>
+      <div class="row" id="mkPhotoRow" hidden><span class="small muted">Photo added.</span><button class="btn" id="mkPhotoClear" type="button">Remove photo</button></div>
+      <label class="field"><span>How you earn it (optional)</span><input type="text" id="mkNote" maxlength="140"></label>
+      <div class="row">
+        <button class="btn primary" id="mkSave">Save item</button>
+        <button class="btn" id="mkCancel">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="pane editor" aria-label="Section editor">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="mat-wrap" id="matWrap">
+      <canvas id="mat" tabindex="0" aria-label="Jacket section. Drag patches to move them. R rotates, Delete removes, arrow keys nudge."></canvas>
+      <div class="mat-empty" id="matEmpty" hidden>Pick something on the left and press Add.</div>
+    </div>
+    <div class="editor-foot">
+      <label><input type="checkbox" id="snap" checked> Snap to 0.5 cm</label>
+      <span>Drag to move. R rotates, Delete removes, arrows nudge.</span>
+      <span class="row">
+        <button class="btn" id="btnUndo" disabled>Undo</button>
+        <button class="btn" id="btnSavePic">Save picture</button>
+      </span>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="pane viewer">
+      <canvas id="three" aria-label="3D preview of the jacket. Drag to spin."></canvas>
+      <div class="viewer-tools">
+        <button class="btn icon" id="zoomOut" aria-label="Zoom out">−</button>
+        <button class="btn icon" id="zoomIn" aria-label="Zoom in">+</button>
+        <button class="btn" id="snapshot">Snapshot</button>
+      </div>
+      <div class="viewer-fail" id="viewerFail">The 3D preview couldn't start in this browser. The flat editor still works.</div>
+      <p class="viewer-hint">Drag to spin. Tap a section to edit it.</p>
+    </div>
+    <div class="pane" id="inspector" aria-live="polite"></div>
+    <div class="pane">
+      <h2>Space used</h2>
+      <div id="space"></div>
+    </div>
+  </aside>
+</main>
+
+<dialog id="measureDlg">
+  <div class="dlg">
+    <h2>Jacket size</h2>
+    <p>Measure your actual GPA with a soft tape so the space limits are real. Sleeve circumference is taken around the upper arm.</p>
+    <div class="grid2">
+      <label class="field"><span>Chest, all the way around (cm)</span><input type="number" id="mChest" min="60" max="200" step="0.5"></label>
+      <label class="field"><span>Body length (cm)</span><input type="number" id="mLength" min="40" max="110" step="0.5"></label>
+      <label class="field"><span>Sleeve length (cm)</span><input type="number" id="mSleeve" min="30" max="100" step="0.5"></label>
+      <label class="field"><span>Sleeve circumference (cm)</span><input type="number" id="mSleeveCirc" min="20" max="70" step="0.5"></label>
+      <label class="field"><span>Waistband height (cm)</span><input type="number" id="mWaist" min="0" max="20" step="0.5"></label>
+      <label class="field"><span>Cuff height (cm)</span><input type="number" id="mCuff" min="0" max="20" step="0.5"></label>
+      <label class="field"><span>Zipper strip width (cm)</span><input type="number" id="mZip" min="0" max="10" step="0.5"></label>
+      <label class="field"><span>Gap between patches (cm)</span><input type="number" id="mGap" min="0" max="3" step="0.1"></label>
+      <label class="field"><span>Jacket colour</span><input type="color" id="mColor"></label>
+      <label class="field"><span>Lining colour</span><input type="color" id="mLining"></label>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="mSave">Apply</button>
+      <button class="btn" id="mCancel">Cancel</button>
+      <button class="btn" id="mDefaults" style="margin-left:auto">Use defaults</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastBtn" hidden>Undo</button></div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

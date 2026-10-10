@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GPA Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Graduate&display=swap" rel="stylesheet">
+<style>
+:root{
+  --q-blue:#002452; --q-gold:#EAAA00; --q-red:#9D1939;
+  --bg:#E6EBF1; --panel:#FFFFFF; --ink:#132039; --muted:#566277; --line:#CDD5E0; --field:#F3F5F8;
+  --accent:#002452; --on-accent:#FFFFFF; --mat:#2E5B48; --warn:#B3122E; --ok:#1F7A4D;
+  --radius-s:6px; --radius-m:10px;
+  --display:"Graduate","Rockwell","Arial Black",serif;
+  --body:"Archivo","Helvetica Neue",Arial,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#08111F; --panel:#101D33; --ink:#E6ECF5; --muted:#9AA9BF; --line:#22355A; --field:#0B1729;
+    --accent:#EAAA00; --on-accent:#1C1400; --warn:#FF6B7F; --ok:#5FD19A; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#08111F; --panel:#101D33; --ink:#E6ECF5; --muted:#9AA9BF; --line:#22355A; --field:#0B1729;
+  --accent:#EAAA00; --on-accent:#1C1400; --warn:#FF6B7F; --ok:#5FD19A; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none !important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);min-height:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--q-gold);outline-offset:2px}
+
+.top{background:var(--q-blue);color:#fff;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;padding:14px clamp(14px,3vw,28px)}
+.brand h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,3.4vw,36px);line-height:1;margin:0;color:var(--q-gold);letter-spacing:.02em}
+.brand p{margin:4px 0 0;color:#C9D4E6;font-size:14px}
+.top-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.save-state{font-size:13px;color:#C9D4E6;margin-right:6px}
+.top .btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.25);color:#fff}
+.top .btn:hover{background:rgba(255,255,255,.16)}
+.tricolour{height:6px;background:linear-gradient(90deg,var(--q-gold) 0 33.3%,var(--q-red) 33.3% 66.6%,#0B3A7A 66.6% 100%)}
+
+.layout{display:grid;gap:14px;padding:14px clamp(10px,2vw,22px) 28px;
+  grid-template-columns:290px minmax(0,1fr) 350px;grid-template-areas:"cat edit side";align-items:start}
+.catalog{grid-area:cat}.editor{grid-area:edit}.side{grid-area:side;display:grid;gap:14px}
+@media (max-width:1180px){.layout{grid-template-columns:minmax(0,1fr) 330px;grid-template-areas:"edit side" "cat side"}}
+@media (max-width:760px){.layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"edit" "cat" "side"}}
+
+.pane{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-m);padding:14px}
+.pane h2{font-size:16px;margin:0 0 10px;font-weight:700}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--field);border-radius:var(--radius-s);padding:7px 12px;cursor:pointer;font-weight:600;font-size:14px;min-height:36px}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.danger{color:var(--warn)}
+.btn.icon{width:36px;padding:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+label.field{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+label.field>span{color:var(--muted)}
+select,input[type=text],input[type=number]{width:100%;background:var(--field);border:1px solid var(--line);border-radius:var(--radius-s);padding:7px 9px;min-height:36px;color:var(--ink);font-weight:500}
+input[type=color]{width:100%;height:36px;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--field);padding:2px;cursor:pointer}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+.preview{margin:12px 0;border-radius:var(--radius-m);overflow:hidden;border:1px solid var(--line)}
+.preview canvas{display:block;width:100%;height:130px}
+.preview .meta{padding:10px 12px;background:var(--field)}
+.preview .meta strong{display:block;font-size:15px}
+.preview .meta p{margin:4px 0 0;font-size:13px;color:var(--muted)}
+.maker{border-top:1px solid var(--line);margin-top:14px;padding-top:14px;display:grid;gap:10px}
+.maker h3{margin:0;font-size:15px}
+.flag-opts{display:grid;gap:10px}
+
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px}
+.tab{border:1px solid var(--line);background:var(--field);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:600;font-size:14px;display:inline-flex;gap:8px;align-items:center}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.tab .count{font-size:12px;opacity:.75;font-variant-numeric:tabular-nums}
+.tab .flag{width:8px;height:8px;border-radius:50%;background:var(--warn);display:none}
+.tab.has-issue .flag{display:inline-block}
+.mat-wrap{position:relative;height:clamp(440px,calc(100vh - 230px),900px);border-radius:var(--radius-m);overflow:hidden;background:var(--mat);touch-action:none}
+.mat-wrap canvas{display:block;width:100%;height:100%;cursor:default}
+.mat-empty{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;border-radius:999px;padding:8px 16px;font-size:14px;pointer-events:none;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis}
+.editor-foot{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;margin-top:10px;font-size:13px;color:var(--muted)}
+.editor-foot label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+@media (max-width:760px){.mat-wrap{height:min(74vh,128vw)}}
+
+.viewer{padding:0;overflow:hidden;position:relative}
+.viewer canvas{display:block;width:100%;height:340px;cursor:grab;touch-action:none;background:radial-gradient(ellipse at 50% 35%,rgba(255,255,255,.10),transparent 70%),var(--field)}
+.viewer canvas:active{cursor:grabbing}
+.viewer-tools{position:absolute;top:10px;right:10px;display:flex;gap:6px}
+.viewer-tools .btn{background:var(--panel)}
+.viewer-hint{margin:0;padding:8px 12px;font-size:13px;color:var(--muted);border-top:1px solid var(--line)}
+.viewer-fail{position:absolute;inset:0 0 38px;display:none;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--muted)}
+
+.insp-empty{color:var(--muted);font-size:14px;margin:0}
+.insp-title{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.insp-title strong{font-size:16px}
+.status{font-size:13px;font-weight:600;margin:4px 0 12px}
+.status.bad{color:var(--warn)}.status.good{color:var(--ok)}
+.insp-body{display:grid;gap:10px}
+
+.space-row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 0;border-top:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;width:100%}
+.space-row:first-of-type{border-top:0}
+.space-row .nm{font-weight:600}
+.space-row .pc{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.meter{grid-column:1/-1;height:8px;border-radius:4px;background:var(--field);border:1px solid var(--line);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--q-gold)}
+.space-row .issue{grid-column:1/-1;color:var(--warn);font-size:12px;font-weight:600}
+
+dialog{border:1px solid var(--line);border-radius:var(--radius-m);background:var(--panel);color:var(--ink);padding:0;width:min(520px,94vw)}
+dialog::backdrop{background:rgba(5,12,25,.55)}
+.dlg{padding:18px;display:grid;gap:12px}
+.dlg h2{margin:0;font-size:18px}
+.dlg p{margin:0;font-size:14px;color:var(--muted)}
+
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(30px);opacity:0;background:var(--q-blue);color:#fff;border-radius:var(--radius-m);padding:10px 14px;display:flex;gap:12px;align-items:center;font-size:14px;transition:opacity .2s,transform .2s;pointer-events:none;z-index:20;max-width:92vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.toast button{background:var(--q-gold);color:#1C1400;border:0;border-radius:var(--radius-s);padding:5px 10px;font-weight:700;cursor:pointer}
+@media (prefers-reduced-motion: reduce){.toast{transition:none}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>GPA Planner</h1>
+    <p>Lay out every bar and patch before anything gets sewn.</p>
+  </div>
+  <div class="top-actions">
+    <span class="save-state" id="saveState" role="status"></span>
+    <button class="btn" id="btnMeasure">Jacket size</button>
+    <button class="btn" id="btnExport">Export</button>
+    <button class="btn" id="btnImport">Import</button>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+  </div>
+</header>
+<div class="tricolour" aria-hidden="true"></div>
+
+<main class="layout">
+  <section class="pane catalog" aria-labelledby="catTitle">
+    <h2 id="catTitle">Add to the jacket</h2>
+    <label class="field"><span>Bar, patch or flag</span>
+      <select id="itemSelect"></select>
+    </label>
+    <div class="preview">
+      <canvas id="itemPreview" aria-hidden="true"></canvas>
+      <div class="meta"><strong id="pvName"></strong><span class="small muted" id="pvSize"></span><p id="pvNote"></p></div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="btnAdd" style="flex:1">Add to front</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" id="btnEditItem">Edit item</button>
+      <button class="btn danger" id="btnDeleteItem">Delete item</button>
+    </div>
+
+    <div class="maker" id="maker" hidden>
+      <h3 id="makerTitle">Make your own</h3>
+      <div class="grid2">
+        <label class="field"><span>Kind</span>
+          <select id="mkCat"><option value="bar">Bar</option><option value="patch">Patch</option><option value="flag">Flag</option></select>
+        </label>
+        <label class="field"><span>Shape</span>
+          <select id="mkShape"><option value="rect">Rectangle</option><option value="round">Rounded</option><option value="circle">Circle</option><option value="shield">Shield</option><option value="text">Letters only</option></select>
+        </label>
+      </div>
+      <label class="field"><span>Name in the list</span><input type="text" id="mkName" maxlength="40" placeholder="e.g. Iron ring"></label>
+      <label class="field"><span>Text on it</span><input type="text" id="mkText" maxlength="24" placeholder="Leave blank for none"></label>
+      <div class="grid2">
+        <label class="field"><span>Width (cm)</span><input type="number" id="mkW" min="0.5" max="60" step="0.1"></label>
+        <label class="field"><span>Height (cm)</span><input type="number" id="mkH" min="0.5" max="60" step="0.1"></label>
+      </div>
+      <div class="grid3">
+        <label class="field"><span>Background</span><input type="color" id="mkBg"></label>
+        <label class="field"><span>Text</span><input type="color" id="mkFg"></label>
+        <label class="field"><span>Edge</span><input type="color" id="mkBorder"></label>
+      </div>
+      <div class="flag-opts" id="flagOpts">
+        <div class="grid2">
+          <label class="field"><span>Stripes</span>
+            <select id="mkFlagDir"><option value="">None</option><option value="h">Horizontal</option><option value="v">Vertical</option></select>
+          </label>
+          <label class="field"><span>Stripe count</span>
+            <select id="mkFlagN"><option value="2">2</option><option value="3">3</option></select>
+          </label>
+        </div>
+        <div class="grid3">
+          <label class="field"><span>Stripe 1</span><input type="color" id="mkF1"></label>
+          <label class="field"><span>Stripe 2</span><input type="color" id="mkF2"></label>
+          <label class="field" id="mkF3wrap"><span>Stripe 3</span><input type="color" id="mkF3"></label>
+        </div>
+      </div>
+      <label class="field"><span>Photo of the real one (optional)</span><input type="file" id="mkPhoto" accept="image/*"></label>
+      <div class="row" id="mkPhotoRow" hidden><span class="small muted">Photo added.</span><button class="btn" id="mkPhotoClear" type="button">Remove photo</button></div>
+      <label class="field"><span>How you earn it (optional)</span><input type="text" id="mkNote" maxlength="140"></label>
+      <div class="row">
+        <button class="btn primary" id="mkSave">Save item</button>
+        <button class="btn" id="mkCancel">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="pane editor" aria-label="Section editor">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="mat-wrap" id="matWrap">
+      <canvas id="mat" tabindex="0" aria-label="Jacket section. Drag patches to move them. R rotates, Delete removes, arrow keys nudge."></canvas>
+      <div class="mat-empty" id="matEmpty" hidden>Pick something on the left and press Add.</div>
+    </div>
+    <div class="editor-foot">
+      <label><input type="checkbox" id="snap" checked> Snap to 0.5 cm</label>
+      <span>Drag to move. R rotates, Delete removes, arrows nudge.</span>
+      <span class="row">
+        <button class="btn" id="btnUndo" disabled>Undo</button>
+        <button class="btn" id="btnSavePic">Save picture</button>
+      </span>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="pane viewer">
+      <canvas id="three" aria-label="3D preview of the jacket. Drag to spin."></canvas>
+      <div class="viewer-tools">
+        <button class="btn icon" id="zoomOut" aria-label="Zoom out">−</button>
+        <button class="btn icon" id="zoomIn" aria-label="Zoom in">+</button>
+        <button class="btn" id="snapshot">Snapshot</button>
+      </div>
+      <div class="viewer-fail" id="viewerFail">The 3D preview couldn't start in this browser. The flat editor still works.</div>
+      <p class="viewer-hint">Drag to spin. Tap a section to edit it.</p>
+    </div>
+    <div class="pane" id="inspector" aria-live="polite"></div>
+    <div class="pane">
+      <h2>Space used</h2>
+      <div id="space"></div>
+    </div>
+  </aside>
+</main>
+
+<dialog id="measureDlg">
+  <div class="dlg">
+    <h2>Jacket size</h2>
+    <p>Measure your actual GPA with a soft tape so the space limits are real. Sleeve circumference is taken around the upper arm.</p>
+    <div class="grid2">
+      <label class="field"><span>Chest, all the way around (cm)</span><input type="number" id="mChest" min="60" max="200" step="0.5"></label>
+      <label class="field"><span>Body length (cm)</span><input type="number" id="mLength" min="40" max="110" step="0.5"></label>
+      <label class="field"><span>Sleeve length (cm)</span><input type="number" id="mSleeve" min="30" max="100" step="0.5"></label>
+      <label class="field"><span>Sleeve circumference (cm)</span><input type="number" id="mSleeveCirc" min="20" max="70" step="0.5"></label>
+      <label class="field"><span>Waistband height (cm)</span><input type="number" id="mWaist" min="0" max="20" step="0.5"></label>
+      <label class="field"><span>Cuff height (cm)</span><input type="number" id="mCuff" min="0" max="20" step="0.5"></label>
+      <label class="field"><span>Zipper strip width (cm)</span><input type="number" id="mZip" min="0" max="10" step="0.5"></label>
+      <label class="field"><span>Gap between patches (cm)</span><input type="number" id="mGap" min="0" max="3" step="0.1"></label>
+      <label class="field"><span>Jacket colour</span><input type="color" id="mColor"></label>
+      <label class="field"><span>Lining colour</span><input type="color" id="mLining"></label>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="mSave">Apply</button>
+      <button class="btn" id="mCancel">Cancel</button>
+      <button class="btn" id="mDefaults" style="margin-left:auto">Use defaults</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastBtn" hidden>Undo</button></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+   DATA — edit these to match the real jacket and the real bars.
+   Sizes are in centimetres. Bar sizes and colours below are placeholders.
+   ===================================================================== */
+const DEFAULT_MEAS = { chest:110, length:68, sleeve:64, sleeveCirc:38, waistband:6, cuff:6, zipper:3, gap:0.3 };
+const DEFAULT_JACKET = { color:'#D4A017', lining:'#1B2A45' };
+
+const PRESETS = [
+  // Bars
+  { id:'bar-wizard', cat:'bar', name:'Wizard', text:'WIZARD', w:10, h:2.5, shape:'rect', bg:'#002452', fg:'#EAAA00', border:'#EAAA00', note:'Build a staff out of beers as tall as you are.' },
+  { id:'bar-frec', cat:'bar', name:'Frec', text:'FREC', w:10, h:2.5, shape:'rect', bg:'#9D1939', fg:'#FFFFFF', border:'#EAAA00', note:'Orientation leader.' },
+  { id:'bar-discipline', cat:'bar', name:'Discipline', text:'COMPUTER', w:10, h:2.5, shape:'rect', bg:'#FFFFFF', fg:'#002452', border:'#002452', note:'Your program of study. Edit the text per placement.' },
+  { id:'bar-frosh', cat:'bar', name:'Frosh group', text:'FROSH GROUP', w:10, h:2.5, shape:'rect', bg:'#002452', fg:'#FFFFFF', border:'#9D1939', note:'Usually on the back, below the EngSoc crest.' },
+  { id:'bar-blank', cat:'bar', name:'Blank bar', text:'BAR', w:10, h:2.5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#132039', note:'Rename it on the jacket to stand in for any bar.' },
+  // Patches
+  { id:'patch-pass', cat:'patch', name:'Pass crest', text:'PASS', w:8, h:8, shape:'circle', bg:'#002452', fg:'#EAAA00', border:'#9D1939', note:'Goes on the right shoulder after first year.' },
+  { id:'patch-engsoc', cat:'patch', name:'EngSoc crest', text:'ENGSOC', w:9, h:10, shape:'shield', bg:'#9D1939', fg:'#EAAA00', border:'#EAAA00', note:'Usually on the back, above the frosh group bar.' },
+  { id:'patch-year', cat:'patch', name:'Year number', text:'29', w:9, h:7, shape:'text', bg:'#EAAA00', fg:'#002452', border:'#EAAA00', note:'Your graduating year, traditionally on the left sleeve.' },
+  { id:'patch-dept', cat:'patch', name:'Department crest', text:'ECE', w:7, h:7, shape:'circle', bg:'#FFFFFF', fg:'#002452', border:'#002452', note:'' },
+  { id:'patch-club', cat:'patch', name:'Club patch', text:'CLUB', w:7, h:6, shape:'round', bg:'#132039', fg:'#FFFFFF', border:'#EAAA00', note:'Stand-in for a team or club patch.' },
+  // Flags
+  { id:'flag-ca', cat:'flag', name:'Canada', text:'', w:8, h:4, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'canada'} },
+  { id:'flag-fr', cat:'flag', name:'France', text:'', w:7.5, h:5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'v', colors:['#0055A4','#FFFFFF','#EF4135']} },
+  { id:'flag-it', cat:'flag', name:'Italy', text:'', w:7.5, h:5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'v', colors:['#009246','#FFFFFF','#CE2B37']} },
+  { id:'flag-ie', cat:'flag', name:'Ireland', text:'', w:8, h:4, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'v', colors:['#169B62','#FFFFFF','#FF883E']} },
+  { id:'flag-de', cat:'flag', name:'Germany', text:'', w:7.5, h:4.5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'h', colors:['#000000','#DD0000','#FFCE00']} },
+  { id:'flag-nl', cat:'flag', name:'Netherlands', text:'', w:7.5, h:5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'h', colors:['#AE1C28','#FFFFFF','#21468B']} },
+  { id:'flag-ua', cat:'flag', name:'Ukraine', text:'', w:7.5, h:5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'h', colors:['#0057B7','#FFD700']} },
+  { id:'flag-ng', cat:'flag', name:'Nigeria', text:'', w:8, h:4, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'v', colors:['#008751','#FFFFFF','#008751']} },
+  { id:'flag-jp', cat:'flag', name:'Japan', text:'', w:7.5, h:5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'disc', colors:['#FFFFFF','#BC002D']} },
+];
+const CATS = [['bar','Bars'],['patch','Patches'],['flag','Flags']];
+const SECTIONS = ['front','back','leftSleeve','rightSleeve'];
+const SECTION_LABEL = { front:'Front', back:'Back', leftSleeve:'Left sleeve', rightSleeve:'Right sleeve' };
+const SNAP_STEP = 0.5;
+const TEX_PX = 12; // texture pixels per cm for the 3D model
+
+/* ===================== Helpers ===================== */
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const r1 = v => Math.round(v*10)/10;
+const newId = () => Math.random().toString(36).slice(2,10);
+const deepCopy = o => JSON.parse(JSON.stringify(o));
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const PRESET_IDS = new Set(PRESETS.map(p => p.id));
+
+function hexToRgb(h){
+  h = String(h||'#000').replace('#','');
+  if (h.length === 3) h = h.split('').map(c => c+c).join('');
+  const n = parseInt(h,16) || 0;
+  return [(n>>16)&255, (n>>8)&255, n&255];
+}
+function shade(h, a){
+  const [r,g,b] = hexToRgb(h), t = a < 0 ? 0 : 255, p = Math.abs(a);
+  const m = c => Math.round(c + (t-c)*p);
+  return `rgb(${m(r)},${m(g)},${m(b)})`;
+}
+function rgbToHex(c){
+  if (/^#[0-9a-f]{6}$/i.test(c)) return c;
+  const m = String(c).match(/\d+/g); if (!m) return '#000000';
+  return '#' + m.slice(0,3).map(x => (+x).toString(16).padStart(2,'0')).join('');
+}
+
+/* ===================== State ===================== */
+let state = freshState();
+let catMap = new Map();
+let current = 'front';
+let sel = null;
+const undoStack = [];
+
+function freshState(){
+  return { v:1, updatedAt:0, meas:{...DEFAULT_MEAS}, jacket:{...DEFAULT_JACKET}, items:[], placed:[] };
+}
+function normalize(raw){
+  const s = freshState();
+  if (!raw || typeof raw !== 'object') return s;
+  s.updatedAt = +raw.updatedAt || 0;
+  if (raw.meas) for (const k of Object.keys(DEFAULT_MEAS)) if (isFinite(+raw.meas[k])) s.meas[k] = +raw.meas[k];
+  if (raw.jacket){ if (/^#[0-9a-f]{6}$/i.test(raw.jacket.color)) s.jacket.color = raw.jacket.color; if (/^#[0-9a-f]{6}$/i.test(raw.jacket.lining)) s.jacket.lining = raw.jacket.lining; }
+  if (Array.isArray(raw.items)) s.items = raw.items.filter(d => d && d.id && isFinite(+d.w) && isFinite(+d.h)).map(d => ({...d, w:+d.w, h:+d.h}));
+  if (Array.isArray(raw.placed)) s.placed = raw.placed.filter(p => p && p.uid && SECTIONS.includes(p.section)).map(p => ({ uid:String(p.uid), item:String(p.item), section:p.section, x:+p.x||0, y:+p.y||0, rot: (+p.rot===90)?90:0, text: typeof p.text === 'string' ? p.text : null }));
+  return s;
+}
+function rebuildCatalog(){
+  catMap = new Map(PRESETS.map(p => [p.id, {...p}]));
+  for (const it of state.items) catMap.set(it.id, {...it});
+  state.placed = state.placed.filter(p => catMap.has(p.item));
+}
+const getDef = id => catMap.get(id);
+const isCustom = id => !PRESET_IDS.has(id);
+const isEditedPreset = id => PRESET_IDS.has(id) && state.items.some(i => i.id === id);
+
+function sectionSize(s){
+  const m = state.meas;
+  return (s === 'front' || s === 'back') ? { w:m.chest/2, h:m.length } : { w:m.sleeveCirc, h:m.sleeve };
+}
+function noGoZones(s){
+  const m = state.meas, { w, h } = sectionSize(s), z = [];
+  if (s === 'front' && m.zipper > 0) z.push({ x:w/2 - m.zipper/2, y:0, w:m.zipper, h:h - m.waistband, label:'Zipper', kind:'zip' });
+  if ((s === 'front' || s === 'back') && m.waistband > 0) z.push({ x:0, y:h - m.waistband, w, h:m.waistband, label:'Waistband', kind:'rib' });
+  if ((s === 'leftSleeve' || s === 'rightSleeve') && m.cuff > 0) z.push({ x:0, y:h - m.cuff, w, h:m.cuff, label:'Cuff', kind:'rib' });
+  return z;
+}
+function dims(p){
+  const d = getDef(p.item); if (!d) return { w:0, h:0 };
+  return p.rot === 90 ? { w:d.h, h:d.w } : { w:d.w, h:d.h };
+}
+const textOf = p => (p.text != null && p.text !== '') ? p.text : (getDef(p.item)?.text || '');
+
+/* ===================== Fit checking ===================== */
+function boxesClash(a, b, gap){
+  const e = 1e-6;
+  return !(a.x + a.w + gap <= b.x + e || b.x + b.w + gap <= a.x + e || a.y + a.h + gap <= b.y + e || b.y + b.h + gap <= a.y + e);
+}
+function conflicts(section){
+  const { w, h } = sectionSize(section), gap = state.meas.gap, zones = noGoZones(section);
+  const list = state.placed.filter(p => p.section === section), bad = new Map();
+  const add = (p, why) => { if (!bad.has(p.uid)) bad.set(p.uid, why); };
+  const boxes = list.map(p => ({ p, ...dims(p), x:p.x, y:p.y }));
+  for (const b of boxes){
+    if (b.x < -1e-6 || b.y < -1e-6 || b.x + b.w > w + 1e-6 || b.y + b.h > h + 1e-6) add(b.p, 'Hangs off the edge of the panel');
+    for (const z of zones) if (boxesClash(b, z, 0)) add(b.p, `Covers the ${z.label.toLowerCase()}`);
+  }
+  for (let i = 0; i < boxes.length; i++) for (let j = i+1; j < boxes.length; j++){
+    const a = boxes[i], b = boxes[j];
+    if (boxesClash(a, b, gap)){
+      const hard = boxesClash(a, b, 0);
+      add(a.p, hard ? `Overlaps ${getDef(b.p.item).name}` : `Closer than ${state.meas.gap} cm to ${getDef(b.p.item).name}`);
+      add(b.p, hard ? `Overlaps ${getDef(a.p.item).name}` : `Closer than ${state.meas.gap} cm to ${getDef(a.p.item).name}`);
+    }
+  }
+  return bad;
+}
+function findSpot(section, iw, ih, skipUid){
+  const { w, h } = sectionSize(section), gap = state.meas.gap, zones = noGoZones(section);
+  const others = state.placed.filter(p => p.section === section && p.uid !== skipUid).map(p => ({ x:p.x, y:p.y, ...dims(p) }));
+  const anchor = section === 'front' ? { x:w*0.75 - iw/2, y:10 } : section === 'back' ? { x:w/2 - iw/2, y:8 } : { x:w/2 - iw/2, y:4 };
+  let best = null, bestD = Infinity;
+  for (let y = 0; y + ih <= h + 1e-6; y += SNAP_STEP){
+    for (let x = 0; x + iw <= w + 1e-6; x += SNAP_STEP){
+      const b = { x, y, w:iw, h:ih };
+      if (zones.some(z => boxesClash(b, z, 0))) continue;
+      if (others.some(o => boxesClash(b, o, gap))) continue;
+      const d = (x-anchor.x)**2 + (y-anchor.y)**2;
+      if (d < bestD){ bestD = d; best = { x, y }; }
+    }
+  }
+  return best;
+}
+
+/* ===================== Drawing ===================== */
+const imgCache = new Map();
+function getImg(src){
+  if (!src) return null;
+  let im = imgCache.get(src);
+  if (!im){ im = new Image(); im.onload = () => { redrawEverything(); }; im.src = src; imgCache.set(src, im); }
+  return im.complete && im.naturalWidth ? im : null;
+}
+function roundRectPath(ctx, x, y, w, h, r){
+  r = Math.min(r, w/2, h/2);
+  ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y); ctx.closePath();
+}
+function shapePath(ctx, shape, x, y, w, h){
+  ctx.beginPath();
+  const m = Math.min(w, h);
+  if (shape === 'circle') ctx.ellipse(x+w/2, y+h/2, Math.max(0.1,w/2), Math.max(0.1,h/2), 0, 0, Math.PI*2);
+  else if (shape === 'round') roundRectPath(ctx, x, y, w, h, m*0.45);
+  else if (shape === 'shield'){
+    ctx.moveTo(x, y); ctx.lineTo(x+w, y); ctx.lineTo(x+w, y+h*0.52);
+    ctx.quadraticCurveTo(x+w, y+h*0.86, x+w/2, y+h); ctx.quadraticCurveTo(x, y+h*0.86, x, y+h*0.52); ctx.closePath();
+  } else roundRectPath(ctx, x, y, w, h, m*0.12);
+}
+const LEAF = [[0,-1],[.12,-.74],[.3,-.82],[.22,-.38],[.48,-.6],[.55,-.48],[.85,-.55],[.75,-.28],[.95,-.2],[.55,.1],[.62,.25],[.08,.2],[.06,.62],[-.06,.62],[-.08,.2],[-.62,.25],[-.55,.1],[-.95,-.2],[-.75,-.28],[-.85,-.55],[-.55,-.48],[-.48,-.6],[-.22,-.38],[-.3,-.82],[-.12,-.74]];
+function drawFlag(ctx, f, x, y, w, h){
+  const c = f.colors || [];
+  if (f.type === 'h'){ const n = c.length; c.forEach((col,i) => { ctx.fillStyle = col; ctx.fillRect(x, y + h*i/n - 0.5, w, h/n + 1); }); }
+  else if (f.type === 'v'){ const n = c.length; c.forEach((col,i) => { ctx.fillStyle = col; ctx.fillRect(x + w*i/n - 0.5, y, w/n + 1, h); }); }
+  else if (f.type === 'disc'){ ctx.fillStyle = c[0]; ctx.fillRect(x, y, w, h); ctx.fillStyle = c[1]; ctx.beginPath(); ctx.arc(x+w/2, y+h/2, h*0.3, 0, Math.PI*2); ctx.fill(); }
+  else if (f.type === 'canada'){
+    ctx.fillStyle = '#D52B1E'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + w*0.25, y, w*0.5, h);
+    const s = Math.min(w*0.5, h) * 0.4, cx = x + w/2, cy = y + h/2 + s*0.05;
+    ctx.fillStyle = '#D52B1E'; ctx.beginPath();
+    LEAF.forEach(([px,py],i) => { const X = cx + px*s, Y = cy + py*s; i ? ctx.lineTo(X,Y) : ctx.moveTo(X,Y); });
+    ctx.closePath(); ctx.fill();
+  }
+}
+function drawItem(ctx, d, text, x, y, w, h){
+  const m = Math.min(w, h);
+  ctx.save();
+  if (d.shape !== 'text'){
+    shapePath(ctx, d.shape, x, y, w, h);
+    ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = Math.max(1, m*0.12); ctx.shadowOffsetY = Math.max(0.5, m*0.04);
+    ctx.fillStyle = d.bg || '#fff'; ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.save(); shapePath(ctx, d.shape, x, y, w, h); ctx.clip();
+    if (d.flag && d.flag.type) drawFlag(ctx, d.flag, x, y, w, h);
+    const im = getImg(d.img);
+    if (im){ const s = Math.max(w/im.naturalWidth, h/im.naturalHeight), iw = im.naturalWidth*s, ih = im.naturalHeight*s; ctx.drawImage(im, x + (w-iw)/2, y + (h-ih)/2, iw, ih); }
+    ctx.restore();
+    if (!im){
+      const lw = Math.max(1, m*0.09);
+      shapePath(ctx, d.shape, x + lw/2, y + lw/2, w - lw, h - lw);
+      ctx.lineWidth = lw; ctx.strokeStyle = d.border || d.fg; ctx.stroke();
+      if (m > 14){
+        const inset = lw*1.7;
+        shapePath(ctx, d.shape, x + inset, y + inset, w - inset*2, h - inset*2);
+        ctx.setLineDash([m*0.06, m*0.05]); ctx.lineWidth = Math.max(0.6, m*0.022);
+        ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.globalCompositeOperation = 'overlay'; ctx.stroke();
+        ctx.setLineDash([]); ctx.globalCompositeOperation = 'source-over';
+      }
+    }
+  }
+  if (text){
+    const maxW = w * ((d.shape === 'circle' || d.shape === 'shield') ? 0.72 : d.shape === 'text' ? 0.98 : 0.84);
+    let fs = d.shape === 'text' ? h*0.9 : (d.shape === 'circle' || d.shape === 'shield') ? m*0.28 : h*0.5;
+    ctx.font = `${fs}px Graduate, Archivo, Impact, sans-serif`;
+    const tw = ctx.measureText(text).width;
+    if (tw > maxW){ fs *= maxW / tw; ctx.font = `${fs}px Graduate, Archivo, Impact, sans-serif`; }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const ty = y + h*(d.shape === 'shield' ? 0.45 : 0.5) + fs*0.05;
+    if (d.shape === 'text' || d.img || (d.flag && d.flag.type)){
+      ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1, fs*0.14); ctx.strokeStyle = d.shape === 'text' ? d.border : 'rgba(0,0,0,.65)';
+      ctx.strokeText(text, x + w/2, ty);
+    }
+    ctx.fillStyle = d.fg || '#000'; ctx.fillText(text, x + w/2, ty);
+  }
+  ctx.restore();
+}
+
+// Draws one jacket section with origin at the panel's top-left, k px per cm.
+function drawPanel(ctx, s, k, o = {}){
+  const { w, h } = sectionSize(s), W = w*k, H = h*k, jc = state.jacket.color;
+  ctx.save();
+  if (o.shadow){ ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 6; }
+  ctx.fillStyle = jc; ctx.fillRect(0, 0, W, H);
+  ctx.shadowColor = 'transparent';
+  if (o.sheen){
+    const g = ctx.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, 'rgba(0,0,0,.12)'); g.addColorStop(.5, 'rgba(255,255,255,.07)'); g.addColorStop(1, 'rgba(0,0,0,.12)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  for (const z of noGoZones(s)){
+    const x = z.x*k, y = z.y*k, zw = z.w*k, zh = z.h*k;
+    if (z.kind === 'rib'){
+      ctx.fillStyle = shade(jc, -0.3); ctx.fillRect(x, y, zw, zh);
+      ctx.strokeStyle = shade(jc, -0.45); ctx.lineWidth = Math.max(1, k*0.14);
+      const step = Math.max(3, k*0.6); ctx.beginPath();
+      for (let xx = x + step/2; xx < x + zw; xx += step){ ctx.moveTo(xx, y); ctx.lineTo(xx, y + zh); }
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = shade(jc, -0.2); ctx.fillRect(x, y, zw, zh);
+      const cx = x + zw/2, tw = Math.max(1.5, zw*0.22), th = Math.max(1, k*0.22), step = Math.max(2.5, k*0.45);
+      ctx.fillStyle = '#B9BEC6'; let i = 0;
+      for (let yy = y; yy < y + zh; yy += step, i++) ctx.fillRect(i % 2 ? cx : cx - tw, yy, tw, th);
+      ctx.fillStyle = '#8E949C'; roundRectPath(ctx, cx - zw*0.16, y + k*1.2, zw*0.32, k*3.6, k*0.4); ctx.fill();
+    }
+    if (o.labels){
+      ctx.save(); ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.font = `600 ${clamp(k*1.4, 9, 13)}px Archivo, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (z.kind === 'zip'){ ctx.translate(x + zw/2, y + zh*0.55); ctx.rotate(-Math.PI/2); ctx.fillText(z.label, 0, 0); }
+      else ctx.fillText(z.label, x + zw/2, y + zh/2);
+      ctx.restore();
+    }
+  }
+  if (o.guides){
+    ctx.save(); const fs = clamp(k*1.3, 9, 12);
+    ctx.font = `600 ${fs}px Archivo, sans-serif`; ctx.fillStyle = 'rgba(0,0,0,.42)'; ctx.textBaseline = 'top';
+    if (s === 'front' || s === 'back'){
+      const L = s === 'front' ? "Wearer's right" : "Wearer's left", R = s === 'front' ? "Wearer's left" : "Wearer's right";
+      ctx.textAlign = 'left'; ctx.fillText(L, 8, 8); ctx.textAlign = 'right'; ctx.fillText(R, W - 8, 8);
+      if (s === 'back'){ ctx.textAlign = 'center'; ctx.fillText('Collar', W/2, 8); }
+    } else {
+      ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.setLineDash([6, 6]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H - state.meas.cuff*k); ctx.stroke(); ctx.setLineDash([]);
+      ctx.textAlign = 'center'; ctx.fillText('Shoulder', W/2, 8);
+      ctx.save(); ctx.translate(W/2 + 6, H*0.45); ctx.rotate(Math.PI/2); ctx.fillText('Outer side', 0, 0); ctx.restore();
+      ctx.textAlign = 'left'; ctx.fillText('Underarm', 6, 8); ctx.textAlign = 'right'; ctx.fillText('Underarm', W - 6, 8);
+    }
+    ctx.restore();
+  }
+  const bad = o.conflicts ? conflicts(s) : null;
+  for (const p of state.placed){
+    if (p.section !== s) continue;
+    const d = getDef(p.item); if (!d) continue;
+    const dm = dims(p);
+    ctx.save(); ctx.translate((p.x + dm.w/2)*k, (p.y + dm.h/2)*k); ctx.rotate(p.rot*Math.PI/180);
+    drawItem(ctx, d, textOf(p), -d.w*k/2, -d.h*k/2, d.w*k, d.h*k);
+    ctx.restore();
+    if (bad && bad.has(p.uid)){
+      ctx.save(); ctx.fillStyle = 'rgba(214,22,48,.28)'; ctx.fillRect(p.x*k, p.y*k, dm.w*k, dm.h*k);
+      ctx.strokeStyle = '#FF3355'; ctx.lineWidth = 2; ctx.strokeRect(p.x*k, p.y*k, dm.w*k, dm.h*k); ctx.restore();
+    }
+    if (o.sel && p.uid === sel){
+      ctx.save(); const pad = o.selPad ?? 4;
+      ctx.lineWidth = o.selWidth ?? 2; ctx.strokeStyle = '#101820'; ctx.strokeRect(p.x*k - pad, p.y*k - pad, dm.w*k + pad*2, dm.h*k + pad*2);
+      ctx.setLineDash([6, 4]); ctx.strokeStyle = '#FFFFFF'; ctx.strokeRect(p.x*k - pad, p.y*k - pad, dm.w*k + pad*2, dm.h*k + pad*2);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+
+/* ===================== 2D editor ===================== */
+const ed = { canvas: $('#mat'), wrap: $('#matWrap'), dpr:1, scale:1, ox:0, oy:0, cw:0, ch:0 };
+ed.ctx = ed.canvas.getContext('2d');
+function layoutEditor(){
+  const r = ed.wrap.getBoundingClientRect();
+  ed.dpr = Math.min(2, window.devicePixelRatio || 1);
+  ed.cw = Math.max(1, r.width); ed.ch = Math.max(1, r.height);
+  ed.canvas.width = Math.round(ed.cw*ed.dpr); ed.canvas.height = Math.round(ed.ch*ed.dpr);
+  const { w, h } = sectionSize(current), pad = ed.cw < 500 ? 30 : 42;
+  ed.scale = Math.max(1, Math.min((ed.cw - pad*2)/w, (ed.ch - pad*2)/h));
+  ed.ox = Math.round((ed.cw - w*ed.scale)/2); ed.oy = Math.round((ed.ch - h*ed.scale)/2);
+}
+function drawEditor(){
+  const ctx = ed.ctx, k = ed.scale, { w, h } = sectionSize(current);
+  ctx.setTransform(ed.dpr, 0, 0, ed.dpr, 0, 0);
+  ctx.fillStyle = '#2E5B48'; ctx.fillRect(0, 0, ed.cw, ed.ch);
+  // cutting-mat grid, aligned to the panel's top-left corner
+  const i0x = -Math.ceil(ed.ox/k), i1x = Math.ceil((ed.cw - ed.ox)/k), i0y = -Math.ceil(ed.oy/k), i1y = Math.ceil((ed.ch - ed.oy)/k);
+  ctx.lineWidth = 1;
+  for (const strong of [false, true]){
+    if (!strong && k < 5) continue;
+    ctx.strokeStyle = strong ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.07)';
+    ctx.beginPath();
+    for (let i = i0x; i <= i1x; i++){ if ((i % 5 === 0) !== strong) continue; const X = Math.round(ed.ox + i*k) + 0.5; ctx.moveTo(X, 0); ctx.lineTo(X, ed.ch); }
+    for (let i = i0y; i <= i1y; i++){ if ((i % 5 === 0) !== strong) continue; const Y = Math.round(ed.oy + i*k) + 0.5; ctx.moveTo(0, Y); ctx.lineTo(ed.cw, Y); }
+    ctx.stroke();
+  }
+  ctx.save(); ctx.translate(ed.ox, ed.oy);
+  drawPanel(ctx, current, k, { shadow:true, sheen:true, labels:true, guides:true, conflicts:true, sel:true });
+  ctx.restore();
+  // rulers
+  ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = '500 11px Archivo, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  for (let c = 0; c <= w + 1e-6; c += 10) ctx.fillText(String(c), ed.ox + c*k, ed.oy - 8);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let c = 0; c <= h + 1e-6; c += 10) ctx.fillText(String(c), ed.ox - 8, ed.oy + c*k);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillStyle = 'rgba(255,255,255,.5)';
+  ctx.fillText(`${r1(w)} × ${r1(h)} cm`, ed.ox, ed.oy + h*k + 22);
+  $('#matEmpty').hidden = state.placed.length > 0;
+}
+function toCm(ev){
+  const r = ed.canvas.getBoundingClientRect();
+  return { x:(ev.clientX - r.left - ed.ox)/ed.scale, y:(ev.clientY - r.top - ed.oy)/ed.scale };
+}
+function hitTest(section, x, y){
+  for (let i = state.placed.length - 1; i >= 0; i--){
+    const p = state.placed[i]; if (p.section !== section) continue;
+    const d = dims(p);
+    if (x >= p.x && x <= p.x + d.w && y >= p.y && y <= p.y + d.h) return p;
+  }
+  return null;
+}
+let drag = null;
+ed.canvas.addEventListener('pointerdown', ev => {
+  ed.canvas.focus({ preventScroll:true });
+  const pt = toCm(ev), p = hitTest(current, pt.x, pt.y);
+  if (!p){ select(null); return; }
+  select(p.uid);
+  pushHistory();
+  state.placed.splice(state.placed.indexOf(p), 1); state.placed.push(p);
+  drag = { uid:p.uid, sx:p.x, sy:p.y, px:pt.x, py:pt.y, moved:false };
+  ed.canvas.setPointerCapture(ev.pointerId); ed.canvas.style.cursor = 'grabbing';
+});
+ed.canvas.addEventListener('pointermove', ev => {
+  const pt = toCm(ev);
+  if (!drag){ ed.canvas.style.cursor = hitTest(current, pt.x, pt.y) ? 'grab' : 'default'; return; }
+  const p = state.placed.find(q => q.uid === drag.uid); if (!p) return;
+  const d = dims(p), { w, h } = sectionSize(current);
+  let nx = drag.sx + (pt.x - drag.px), ny = drag.sy + (pt.y - drag.py);
+  if ($('#snap').checked){ nx = Math.round(nx/SNAP_STEP)*SNAP_STEP; ny = Math.round(ny/SNAP_STEP)*SNAP_STEP; }
+  nx = clamp(nx, 0, Math.max(0, w - d.w)); ny = clamp(ny, 0, Math.max(0, h - d.h));
+  if (nx !== p.x || ny !== p.y){ p.x = Math.round(nx*100)/100; p.y = Math.round(ny*100)/100; drag.moved = true; liveUpdate(); }
+});
+function endDrag(){
+  if (!drag) return;
+  if (!drag.moved){ undoStack.pop(); updateUndo(); } else commit();
+  drag = null; ed.canvas.style.cursor = 'grab';
+}
+ed.canvas.addEventListener('pointerup', endDrag);
+ed.canvas.addEventListener('pointercancel', endDrag);
+ed.canvas.addEventListener('keydown', ev => {
+  const p = state.placed.find(q => q.uid === sel); if (!p) return;
+  const step = ev.shiftKey ? 2 : ($('#snap').checked ? SNAP_STEP : 0.1);
+  const mv = { ArrowLeft:[-step,0], ArrowRight:[step,0], ArrowUp:[0,-step], ArrowDown:[0,step] }[ev.key];
+  if (mv){
+    ev.preventDefault(); pushHistory();
+    const d = dims(p), { w, h } = sectionSize(p.section);
+    p.x = r1(clamp(p.x + mv[0], 0, Math.max(0, w - d.w))); p.y = r1(clamp(p.y + mv[1], 0, Math.max(0, h - d.h)));
+    commit();
+  } else if (ev.key === 'r' || ev.key === 'R'){ ev.preventDefault(); rotateSel(); }
+  else if (ev.key === 'Delete' || ev.key === 'Backspace'){ ev.preventDefault(); removeSel(); }
+  else if (ev.key === 'Escape'){ select(null); }
+});
+
+/* ===================== 3D preview ===================== */
+const V = { ok:false, yaw:-0.35, pitch:0.12, dist:17, targetYaw:null, dirty:true, tex:{}, pick:[] };
+function init3D(){
+  const canvas = $('#three');
+  try {
+    if (!window.THREE) throw new Error('three.js missing');
+    V.renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, preserveDrawingBuffer:true });
+  } catch (e){ $('#viewerFail').style.display = 'flex'; return; }
+  V.ok = true;
+  V.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  V.renderer.outputEncoding = THREE.sRGBEncoding;
+  V.scene = new THREE.Scene();
+  V.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
+  V.scene.add(new THREE.HemisphereLight(0xffffff, 0x3a4658, 0.85));
+  const key = new THREE.DirectionalLight(0xffffff, 0.75); key.position.set(5, 7, 9); V.scene.add(key);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.35); rim.position.set(-6, 3, -8); V.scene.add(rim);
+  V.root = new THREE.Group(); V.scene.add(V.root);
+  for (const s of SECTIONS){
+    const c = document.createElement('canvas');
+    const t = new THREE.CanvasTexture(c);
+    t.encoding = THREE.sRGBEncoding; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false;
+    t.anisotropy = V.renderer.capabilities.getMaxAnisotropy();
+    V.tex[s] = { canvas:c, ctx:c.getContext('2d'), t };
+  }
+  build3D();
+  new ResizeObserver(resize3D).observe(canvas);
+  resize3D();
+  bind3DControls(canvas);
+  requestAnimationFrame(loop3D);
+}
+function disposeTree(o){
+  o.traverse(n => { if (n.geometry) n.geometry.dispose(); if (n.material && !n.material.map) n.material.dispose(); });
+}
+let builtKey = '';
+function build3D(){
+  if (!V.ok) return;
+  builtKey = JSON.stringify([state.meas, state.jacket]);
+  while (V.root.children.length){ const c = V.root.children.pop(); disposeTree(c); }
+  V.pick = [];
+  const m = state.meas, jc = new THREE.Color(state.jacket.color), lining = new THREE.Color(state.jacket.lining);
+  const R = m.chest/(2*Math.PI)/10, Rt = R*0.95, H = m.length/10;
+  const jacketMat = new THREE.MeshStandardMaterial({ color:jc, roughness:0.6 });
+  const liningMat = new THREE.MeshStandardMaterial({ color:lining, roughness:0.9, side:THREE.BackSide });
+  const ribMat = new THREE.MeshStandardMaterial({ color:new THREE.Color(shade(state.jacket.color, -0.3)), roughness:0.85 });
+  for (const s of SECTIONS) renderTexture(s);
+
+  const torso = new THREE.Group(); torso.scale.z = 0.62; V.root.add(torso);
+  const addPanel = (s, start) => {
+    const g = new THREE.CylinderGeometry(Rt, R, H, 64, 1, true, start, Math.PI);
+    const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map:V.tex[s].t, roughness:0.6 }));
+    mesh.userData.section = s; torso.add(mesh); V.pick.push(mesh);
+  };
+  addPanel('front', -Math.PI/2); addPanel('back', Math.PI/2);
+  torso.add(new THREE.Mesh(new THREE.CylinderGeometry(Rt*0.99, R*0.99, H, 48, 1, true), liningMat));
+  const yoke = new THREE.Mesh(new THREE.SphereGeometry(Rt, 64, 16, 0, Math.PI*2, 0, Math.PI/2), jacketMat);
+  yoke.scale.y = 0.28; yoke.position.y = H/2; torso.add(yoke);
+  const neckY = H/2 + 0.28*Rt*Math.sqrt(1 - 0.38*0.38);
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(Rt*0.38, 0.14, 12, 48), ribMat);
+  collar.rotation.x = Math.PI/2; collar.position.y = neckY; torso.add(collar);
+  const neck = new THREE.Mesh(new THREE.CircleGeometry(Rt*0.37, 40), new THREE.MeshStandardMaterial({ color:lining, roughness:0.9 }));
+  neck.rotation.x = -Math.PI/2; neck.position.y = neckY + 0.01; torso.add(neck);
+
+  const rT = m.sleeveCirc/(2*Math.PI)/10, rB = rT*0.8, L = m.sleeve/10;
+  for (const [s, side, start] of [['leftSleeve', 1, -Math.PI/2], ['rightSleeve', -1, -Math.PI*1.5]]){
+    const pivot = new THREE.Group();
+    pivot.position.set(side*(Rt - rT*0.5), H/2 - rT*0.85, 0); pivot.rotation.z = side*0.28;
+    const g = new THREE.CylinderGeometry(rT, rB, L, 48, 1, true, start, Math.PI*2);
+    const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map:V.tex[s].t, roughness:0.6 }));
+    mesh.position.y = -L/2; mesh.userData.section = s; pivot.add(mesh); V.pick.push(mesh);
+    const inner = new THREE.Mesh(new THREE.CylinderGeometry(rT*0.98, rB*0.98, L, 32, 1, true), liningMat);
+    inner.position.y = -L/2; pivot.add(inner);
+    pivot.add(new THREE.Mesh(new THREE.SphereGeometry(rT, 32, 16), jacketMat));
+    V.root.add(pivot);
+  }
+  V.root.position.y = -0.25;
+  V.dirty = true;
+}
+function renderTexture(s){
+  if (!V.ok) return;
+  const T = V.tex[s], { w, h } = sectionSize(s);
+  const cw = Math.round(w*TEX_PX), ch = Math.round(h*TEX_PX);
+  if (T.canvas.width !== cw || T.canvas.height !== ch){
+    T.canvas.width = cw; T.canvas.height = ch;
+    T.t.dispose();
+  }
+  T.ctx.setTransform(1, 0, 0, 1, 0, 0);
+  drawPanel(T.ctx, s, TEX_PX, { sel:true, selPad:3, selWidth:3 });
+  T.t.needsUpdate = true; V.dirty = true;
+}
+function resize3D(){
+  if (!V.ok) return;
+  const c = V.renderer.domElement, w = c.clientWidth, h = c.clientHeight;
+  if (!w || !h) return;
+  V.renderer.setSize(w, h, false); V.camera.aspect = w/h; V.camera.updateProjectionMatrix(); V.dirty = true;
+}
+function focusSection(s){
+  const yaw = { front:0, back:Math.PI, leftSleeve:-Math.PI/2, rightSleeve:Math.PI/2 }[s];
+  if (reduceMotion){ V.yaw = yaw; V.targetYaw = null; V.dirty = true; }
+  else V.targetYaw = yaw;
+}
+function loop3D(){
+  requestAnimationFrame(loop3D);
+  if (V.targetYaw != null){
+    let d = V.targetYaw - V.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+    if (Math.abs(d) < 0.002){ V.yaw = V.targetYaw; V.targetYaw = null; } else V.yaw += d*0.14;
+    V.dirty = true;
+  }
+  if (!V.dirty) return;
+  V.root.rotation.set(V.pitch, V.yaw, 0, 'XYZ');
+  V.camera.position.set(0, 0.6, V.dist); V.camera.lookAt(0, 0, 0);
+  V.renderer.render(V.scene, V.camera);
+  V.dirty = false;
+}
+function bind3DControls(c){
+  let down = null;
+  c.addEventListener('pointerdown', ev => { down = { x:ev.clientX, y:ev.clientY, yaw:V.yaw, pitch:V.pitch, moved:false }; c.setPointerCapture(ev.pointerId); });
+  c.addEventListener('pointermove', ev => {
+    if (!down) return;
+    const dx = ev.clientX - down.x, dy = ev.clientY - down.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) down.moved = true;
+    if (!down.moved) return;
+    V.targetYaw = null; V.yaw = down.yaw + dx*0.012; V.pitch = clamp(down.pitch + dy*0.006, -0.6, 0.6); V.dirty = true;
+  });
+  c.addEventListener('pointerup', ev => { if (down && !down.moved) pick3D(ev); down = null; });
+  c.addEventListener('pointercancel', () => { down = null; });
+  c.addEventListener('wheel', ev => { ev.preventDefault(); V.dist = clamp(V.dist*(1 + ev.deltaY*0.001), 8, 30); V.dirty = true; }, { passive:false });
+}
+function pick3D(ev){
+  const r = V.renderer.domElement.getBoundingClientRect();
+  const ndc = new THREE.Vector2(((ev.clientX - r.left)/r.width)*2 - 1, -((ev.clientY - r.top)/r.height)*2 + 1);
+  const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, V.camera);
+  const hit = ray.intersectObjects(V.pick, false)[0];
+  if (!hit || !hit.uv) return;
+  const s = hit.object.userData.section, { w, h } = sectionSize(s);
+  const p = hitTest(s, hit.uv.x*w, (1 - hit.uv.y)*h);
+  setSection(s, false);
+  select(p ? p.uid : null);
+}
+$('#zoomIn').onclick = () => { V.dist = clamp(V.dist*0.85, 8, 30); V.dirty = true; };
+$('#zoomOut').onclick = () => { V.dist = clamp(V.dist/0.85, 8, 30); V.dirty = true; };
+
+/* ===================== UI: catalog & maker ===================== */
+function buildSelect(keep){
+  const s = $('#itemSelect'); keep = keep || s.value; s.innerHTML = '';
+  for (const [cat, label] of CATS){
+    const g = document.createElement('optgroup'); g.label = label;
+    for (const d of catMap.values()) if (d.cat === cat) g.append(new Option(d.name + (isCustom(d.id) ? ' (yours)' : ''), d.id));
+    s.append(g);
+  }
+  const g = document.createElement('optgroup'); g.label = 'Something else';
+  g.append(new Option('Make your own…', '__new')); s.append(g);
+  s.value = (keep && (catMap.has(keep) || keep === '__new')) ? keep : PRESETS[0].id;
+  showChosen();
+}
+function chosenDef(){ return getDef($('#itemSelect').value); }
+function showChosen(){
+  const v = $('#itemSelect').value;
+  if (v === '__new'){ openMaker(null); return; }
+  const d = getDef(v); if (!d) return;
+  $('#pvName').textContent = d.name;
+  $('#pvSize').textContent = `${r1(d.w)} × ${r1(d.h)} cm`;
+  $('#pvNote').textContent = d.note || '';
+  $('#btnDeleteItem').textContent = isCustom(d.id) ? 'Delete item' : 'Reset to default';
+  $('#btnDeleteItem').hidden = !isCustom(d.id) && !isEditedPreset(d.id);
+  $('#btnEditItem').hidden = false; $('#btnAdd').disabled = false;
+  if (!$('#maker').hidden && maker.editing !== d.id) closeMaker(false);
+  drawPreview(d);
+}
+function drawPreview(d){
+  const c = $('#itemPreview'), r = c.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+  c.width = Math.max(1, Math.round(r.width*dpr)); c.height = Math.max(1, Math.round(r.height*dpr));
+  const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#2E5B48'; ctx.fillRect(0, 0, r.width, r.height);
+  ctx.fillStyle = state.jacket.color; ctx.fillRect(14, 14, r.width - 28, r.height - 28);
+  if (!d) return;
+  const k = Math.min((r.width - 56)/d.w, (r.height - 56)/d.h, 26);
+  drawItem(ctx, d, d.text, (r.width - d.w*k)/2, (r.height - d.h*k)/2, d.w*k, d.h*k);
+}
+$('#itemSelect').addEventListener('change', showChosen);
+
+const maker = { editing:null, photo:null };
+const mk = id => $('#' + id);
+function openMaker(def){
+  maker.editing = def ? def.id : null;
+  const d = def || { cat:'bar', name:'', text:'', w:10, h:2.5, shape:'rect', bg:'#002452', fg:'#FFFFFF', border:'#EAAA00', note:'' };
+  $('#makerTitle').textContent = def ? `Edit ${def.name}` : 'Make your own';
+  mk('mkCat').value = d.cat; mk('mkShape').value = d.shape || 'rect'; mk('mkName').value = d.name; mk('mkText').value = d.text || '';
+  mk('mkW').value = d.w; mk('mkH').value = d.h; mk('mkBg').value = rgbToHex(d.bg || '#ffffff'); mk('mkFg').value = rgbToHex(d.fg || '#000000'); mk('mkBorder').value = rgbToHex(d.border || d.fg || '#000000');
+  mk('mkNote').value = d.note || '';
+  const f = d.flag || {}, fc = f.colors || ['#D52B1E', '#FFFFFF', '#D52B1E'];
+  mk('mkFlagDir').value = (f.type === 'h' || f.type === 'v') ? f.type : '';
+  mk('mkFlagN').value = String(fc.length === 2 ? 2 : 3);
+  mk('mkF1').value = rgbToHex(fc[0] || '#D52B1E'); mk('mkF2').value = rgbToHex(fc[1] || '#FFFFFF'); mk('mkF3').value = rgbToHex(fc[2] || '#D52B1E');
+  maker.flagKeep = (f.type === 'canada' || f.type === 'disc') ? f : null;
+  maker.photo = d.img || null; mk('mkPhoto').value = '';
+  $('#maker').hidden = false; $('#btnEditItem').hidden = true;
+  if (!def){ $('#pvName').textContent = 'New item'; $('#pvSize').textContent = ''; $('#pvNote').textContent = ''; $('#btnDeleteItem').hidden = true; $('#btnAdd').disabled = true; }
+  syncMaker(); mk('mkName').focus();
+}
+function closeMaker(restore = true){
+  $('#maker').hidden = true; maker.editing = null; $('#btnEditItem').hidden = false;
+  if (restore){ if ($('#itemSelect').value === '__new') $('#itemSelect').value = PRESETS[0].id; showChosen(); }
+}
+function readMaker(){
+  const dir = mk('mkFlagDir').value, n = +mk('mkFlagN').value;
+  let flag = null;
+  if (dir) flag = { type:dir, colors:[mk('mkF1').value, mk('mkF2').value, mk('mkF3').value].slice(0, n) };
+  else if (maker.flagKeep) flag = maker.flagKeep;
+  return {
+    id: maker.editing || ('c-' + newId()),
+    cat: mk('mkCat').value, name: mk('mkName').value.trim() || 'Untitled', text: mk('mkText').value.trim(),
+    w: clamp(+mk('mkW').value || 1, 0.5, 60), h: clamp(+mk('mkH').value || 1, 0.5, 60),
+    shape: mk('mkShape').value, bg: mk('mkBg').value, fg: mk('mkFg').value, border: mk('mkBorder').value,
+    note: mk('mkNote').value.trim(), flag, img: maker.photo || null,
+  };
+}
+function syncMaker(){
+  $('#flagOpts').hidden = mk('mkCat').value !== 'flag' && !mk('mkFlagDir').value;
+  $('#mkF3wrap').hidden = mk('mkFlagN').value === '2';
+  $('#mkPhotoRow').hidden = !maker.photo;
+  const d = readMaker(); drawPreview(d);
+  $('#pvSize').textContent = `${r1(d.w)} × ${r1(d.h)} cm`;
+}
+$('#maker').addEventListener('input', syncMaker);
+$('#maker').addEventListener('change', syncMaker);
+mk('mkPhoto').addEventListener('change', async () => {
+  const f = mk('mkPhoto').files[0]; if (!f) return;
+  try { maker.photo = await shrinkImage(f, 240); syncMaker(); }
+  catch (e){ toast("That photo couldn't be read. Try a JPG or PNG."); }
+});
+mk('mkPhotoClear').onclick = () => { maker.photo = null; mk('mkPhoto').value = ''; syncMaker(); };
+mk('mkCancel').onclick = () => closeMaker(true);
+mk('mkSave').onclick = () => {
+  const d = readMaker(), wasEditing = !!maker.editing;
+  pushHistory();
+  const i = state.items.findIndex(x => x.id === d.id);
+  if (i >= 0) state.items[i] = d; else state.items.push(d);
+  rebuildCatalog(); closeMaker(false); buildSelect(d.id);
+  toast(wasEditing ? 'Item saved.' : `Saved ${d.name}.`);
+  commit();
+};
+function shrinkImage(file, max){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const s = Math.min(1, max/Math.max(im.width, im.height)), c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(im.width*s)); c.height = Math.max(1, Math.round(im.height*s));
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      res(file.type === 'image/png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.82));
+    };
+    im.onerror = rej; im.src = url;
+  });
+}
+$('#btnEditItem').onclick = () => { const d = chosenDef(); if (d) openMaker(d); };
+$('#btnDeleteItem').onclick = () => {
+  const d = chosenDef(); if (!d) return;
+  pushHistory();
+  state.items = state.items.filter(x => x.id !== d.id);
+  if (isCustom(d.id)){ state.placed = state.placed.filter(p => p.item !== d.id); if (sel && !state.placed.some(p => p.uid === sel)) sel = null; }
+  rebuildCatalog(); buildSelect(isCustom(d.id) ? null : d.id);
+  toast(isCustom(d.id) ? `Deleted ${d.name}.` : `${d.name} is back to default.`, true);
+  commit();
+};
+$('#btnAdd').onclick = () => {
+  const d = chosenDef(); if (!d) return;
+  pushHistory();
+  let spot = findSpot(current, d.w, d.h), rot = 0;
+  if (!spot && d.w !== d.h){ spot = findSpot(current, d.h, d.w); if (spot) rot = 90; }
+  const p = { uid:newId(), item:d.id, section:current, x:0, y:0, rot, text:null };
+  if (spot){ p.x = spot.x; p.y = spot.y; }
+  else { const { w } = sectionSize(current); p.x = r1(Math.max(0, (w - d.w)/2)); p.y = 2; toast(`No free space left on the ${SECTION_LABEL[current].toLowerCase()}. It's placed, but overlapping.`); }
+  state.placed.push(p); sel = p.uid;
+  commit();
+};
+
+/* ===================== Tabs, inspector, space ===================== */
+function buildTabs(){
+  const t = $('#tabs'); t.innerHTML = '';
+  for (const s of SECTIONS){
+    const b = document.createElement('button');
+    b.className = 'tab'; b.setAttribute('role','tab'); b.dataset.s = s;
+    b.innerHTML = `<span></span><span class="count"></span><span class="flag" aria-hidden="true"></span>`;
+    b.firstChild.textContent = SECTION_LABEL[s];
+    b.onclick = () => setSection(s, true);
+    t.append(b);
+  }
+}
+function updateTabs(){
+  for (const b of document.querySelectorAll('.tab')){
+    const s = b.dataset.s, n = state.placed.filter(p => p.section === s).length;
+    b.setAttribute('aria-selected', String(s === current));
+    b.querySelector('.count').textContent = n ? n : '';
+    b.classList.toggle('has-issue', conflicts(s).size > 0);
+  }
+  $('#btnAdd').textContent = `Add to ${SECTION_LABEL[current].toLowerCase()}`;
+}
+function setSection(s, focus){
+  if (current !== s){ current = s; const p = state.placed.find(q => q.uid === sel); if (p && p.section !== s) sel = null; }
+  if (focus) focusSection(s);
+  layoutEditor(); drawEditor(); updateTabs(); renderInspector();
+  for (const x of SECTIONS) renderTexture(x);
+}
+function select(uid){
+  sel = uid; drawEditor(); renderInspector();
+  for (const s of SECTIONS) renderTexture(s);
+}
+function renderInspector(){
+  const el = $('#inspector'), p = state.placed.find(q => q.uid === sel);
+  if (!p){ el.innerHTML = '<h2>Selected</h2><p class="insp-empty">Tap a patch on the jacket to move, rotate, or relabel it.</p>'; return; }
+  const d = getDef(p.item), dm = dims(p), why = conflicts(p.section).get(p.uid);
+  el.innerHTML = `
+    <div class="insp-title"><strong></strong><span class="small muted"></span></div>
+    <p class="status ${why ? 'bad' : 'good'}"></p>
+    <div class="insp-body">
+      <label class="field"><span>Text on this one</span><input type="text" id="iText" maxlength="24"></label>
+      <div class="grid2">
+        <label class="field"><span>From left (cm)</span><input type="number" id="iX" step="0.1"></label>
+        <label class="field"><span>From top (cm)</span><input type="number" id="iY" step="0.1"></label>
+      </div>
+      <label class="field"><span>Section</span><select id="iSec"></select></label>
+      <div class="row">
+        <button class="btn" id="iRot">Rotate 90°</button>
+        <button class="btn" id="iDup">Duplicate</button>
+        <button class="btn danger" id="iDel">Remove</button>
+      </div>
+    </div>`;
+  el.querySelector('strong').textContent = d.name;
+  el.querySelector('.insp-title .muted').textContent = `${r1(dm.w)} × ${r1(dm.h)} cm`;
+  el.querySelector('.status').textContent = why || 'Fits with room to sew';
+  const it = $('#iText'); it.value = p.text ?? ''; it.placeholder = d.text || 'No text';
+  it.addEventListener('focus', () => pushHistory(), { once:true });
+  it.addEventListener('input', () => { p.text = it.value === '' ? null : it.value; liveUpdate(); scheduleSave(); });
+  $('#iX').value = r1(p.x); $('#iY').value = r1(p.y);
+  const setPos = () => {
+    pushHistory(); const { w, h } = sectionSize(p.section);
+    p.x = r1(clamp(+$('#iX').value || 0, 0, Math.max(0, w - dm.w))); p.y = r1(clamp(+$('#iY').value || 0, 0, Math.max(0, h - dm.h)));
+    commit();
+  };
+  $('#iX').addEventListener('change', setPos); $('#iY').addEventListener('change', setPos);
+  const ss = $('#iSec'); for (const s of SECTIONS) ss.append(new Option(SECTION_LABEL[s], s)); ss.value = p.section;
+  ss.addEventListener('change', () => {
+    pushHistory(); const to = ss.value, spot = findSpot(to, dm.w, dm.h, p.uid);
+    p.section = to; if (spot){ p.x = spot.x; p.y = spot.y; } else { p.x = 0; p.y = 0; toast(`No free space on the ${SECTION_LABEL[to].toLowerCase()}. It's placed, but overlapping.`); }
+    setSection(to, true); commit();
+  });
+  $('#iRot').onclick = rotateSel; $('#iDel').onclick = removeSel;
+  $('#iDup').onclick = () => {
+    pushHistory(); const spot = findSpot(p.section, dm.w, dm.h);
+    const q = { ...p, uid:newId(), x:spot ? spot.x : p.x + 1, y:spot ? spot.y : p.y + 1 };
+    state.placed.push(q); sel = q.uid;
+    if (!spot) toast('No free space for the copy. It overlaps for now.');
+    commit();
+  };
+}
+function rotateSel(){
+  const p = state.placed.find(q => q.uid === sel); if (!p) return;
+  pushHistory();
+  const before = dims(p), cx = p.x + before.w/2, cy = p.y + before.h/2;
+  p.rot = p.rot === 90 ? 0 : 90;
+  const after = dims(p), { w, h } = sectionSize(p.section);
+  p.x = r1(clamp(cx - after.w/2, 0, Math.max(0, w - after.w))); p.y = r1(clamp(cy - after.h/2, 0, Math.max(0, h - after.h)));
+  commit();
+}
+function removeSel(){
+  const p = state.placed.find(q => q.uid === sel); if (!p) return;
+  pushHistory();
+  state.placed = state.placed.filter(q => q.uid !== sel); sel = null;
+  toast(`Removed ${getDef(p.item).name}.`, true);
+  commit();
+}
+function shapeArea(p){ const d = getDef(p.item); const f = d.shape === 'circle' ? Math.PI/4 : d.shape === 'shield' ? 0.86 : 1; return d.w*d.h*f; }
+function renderSpace(){
+  const el = $('#space'); el.innerHTML = '';
+  for (const s of SECTIONS){
+    const { w, h } = sectionSize(s), zones = noGoZones(s);
+    const usable = w*h - zones.reduce((a, z) => a + z.w*z.h, 0);
+    const list = state.placed.filter(p => p.section === s);
+    const used = list.reduce((a, p) => a + shapeArea(p), 0), pct = usable > 0 ? Math.round(100*used/usable) : 0;
+    const issues = conflicts(s).size;
+    const b = document.createElement('button'); b.className = 'space-row';
+    b.innerHTML = `<span class="nm"></span><span class="pc"></span><span class="meter"><i></i></span>${issues ? '<span class="issue"></span>' : ''}`;
+    b.querySelector('.nm').textContent = SECTION_LABEL[s];
+    b.querySelector('.pc').textContent = `${list.length} ${list.length === 1 ? 'item' : 'items'}, ${pct}% used`;
+    b.querySelector('.meter i').style.width = Math.min(100, pct) + '%';
+    if (issues) b.querySelector('.issue').textContent = `${issues} ${issues === 1 ? 'needs' : 'need'} moving`;
+    b.onclick = () => setSection(s, true);
+    el.append(b);
+  }
+}
+
+/* ===================== Update pipeline ===================== */
+let liveQueued = false;
+function liveUpdate(){
+  if (liveQueued) return; liveQueued = true;
+  requestAnimationFrame(() => { liveQueued = false; drawEditor(); renderTexture(current); updateTabs(); });
+}
+function commit(){
+  redrawEverything(); scheduleSave(); updateUndo();
+}
+function redrawEverything(){
+  if (V.ok && builtKey !== JSON.stringify([state.meas, state.jacket])) build3D();
+  layoutEditor(); drawEditor(); updateTabs(); renderInspector(); renderSpace();
+  for (const s of SECTIONS) renderTexture(s);
+  const d = chosenDef(); if (d && $('#maker').hidden) drawPreview(d);
+}
+function pushHistory(){
+  undoStack.push(JSON.stringify({ meas:state.meas, jacket:state.jacket, items:state.items, placed:state.placed }));
+  if (undoStack.length > 80) undoStack.shift();
+  updateUndo();
+}
+function updateUndo(){ $('#btnUndo').disabled = undoStack.length === 0; }
+function undo(){
+  const s = undoStack.pop(); if (!s) return;
+  Object.assign(state, JSON.parse(s));
+  if (sel && !state.placed.some(p => p.uid === sel)) sel = null;
+  rebuildCatalog(); buildSelect(); commit();
+}
+$('#btnUndo').onclick = undo;
+document.addEventListener('keydown', ev => {
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ ev.preventDefault(); undo(); }
+});
+
+/* ===================== Toast ===================== */
+let toastTimer;
+function toast(msg, withUndo){
+  $('#toastMsg').textContent = msg; $('#toastBtn').hidden = !withUndo;
+  $('#toast').classList.add('show'); clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $('#toast').classList.remove('show'), withUndo ? 6000 : 3200);
+}
+$('#toastBtn').onclick = () => { undo(); $('#toast').classList.remove('show'); };
+
+/* ===================== Jacket size dialog ===================== */
+const MFIELDS = { mChest:'chest', mLength:'length', mSleeve:'sleeve', mSleeveCirc:'sleeveCirc', mWaist:'waistband', mCuff:'cuff', mZip:'zipper', mGap:'gap' };
+function fillMeasure(meas, jacket){
+  for (const [id, k] of Object.entries(MFIELDS)) $('#' + id).value = meas[k];
+  $('#mColor').value = jacket.color; $('#mLining').value = jacket.lining;
+}
+$('#btnMeasure').onclick = () => { fillMeasure(state.meas, state.jacket); $('#measureDlg').showModal(); };
+$('#mCancel').onclick = () => $('#measureDlg').close();
+$('#mDefaults').onclick = () => fillMeasure(DEFAULT_MEAS, DEFAULT_JACKET);
+$('#mSave').onclick = () => {
+  pushHistory();
+  for (const [id, k] of Object.entries(MFIELDS)){
+    const el = $('#' + id), v = +el.value;
+    if (isFinite(v) && el.value !== '') state.meas[k] = clamp(v, +el.min, +el.max);
+  }
+  state.jacket.color = $('#mColor').value; state.jacket.lining = $('#mLining').value;
+  $('#measureDlg').close(); commit();
+  const issues = SECTIONS.reduce((a, s) => a + conflicts(s).size, 0);
+  toast(issues ? `Size updated. ${issues} ${issues === 1 ? 'item no longer fits' : 'items no longer fit'}.` : 'Size updated.');
+};
+
+/* ===================== Saving ===================== */
+const LS_KEY = 'gpa-planner-v1';
+let dbRef = null, saveTimer = null, downloads = null;
+function setSaveState(t){ $('#saveState').textContent = t; }
+function scheduleSave(){
+  state.updatedAt = Date.now(); clearTimeout(saveTimer);
+  setSaveState('Saving…'); saveTimer = setTimeout(saveNow, 700);
+}
+async function saveNow(){
+  const json = JSON.stringify(state);
+  let local = false;
+  try { localStorage.setItem(LS_KEY, json); local = true; } catch (e){}
+  if (dbRef){
+    if (json.length > 240000){ setSaveState(local ? 'Saved in this browser only' : 'Not saved'); toast('Your plan is too big to sync. Remove a photo or two.'); return; }
+    try { await dbRef.set({ plan:json, updatedAt:state.updatedAt }); setSaveState('Saved to your account'); return; }
+    catch (e){ console.warn('db save failed', e); }
+  }
+  setSaveState(local ? 'Saved in this browser' : 'Not saved');
+}
+function loadLocal(){ try { const s = localStorage.getItem(LS_KEY); return s ? JSON.parse(s) : null; } catch (e){ return null; } }
+async function connectServices(){
+  if (!window.claude || typeof window.claude.use !== 'function'){ setSaveState(state.updatedAt ? 'Saved in this browser' : ''); return; }
+  try {
+    const [db, user, dl] = await Promise.all([claude.use('db'), claude.use('user'), claude.use('downloads')]);
+    downloads = dl;
+    if (!db || !user){ setSaveState(state.updatedAt ? 'Saved in this browser' : ''); return; }
+    const id = await user.id(); if (!id) return;
+    dbRef = db.doc('data/users/' + id + '/plan');
+    const snap = await dbRef.get();
+    if (snap.exists){
+      const d = snap.data() || {};
+      let remote = null; try { remote = JSON.parse(d.plan); } catch (e){}
+      if (remote && (+remote.updatedAt || 0) > (state.updatedAt || 0)){
+        state = normalize(remote); rebuildCatalog(); buildSelect(); undoStack.length = 0; updateUndo(); commitNoSave();
+        setSaveState('Saved to your account'); return;
+      }
+    }
+    if (state.updatedAt) await saveNow(); else setSaveState('');
+  } catch (e){ console.warn(e); setSaveState(state.updatedAt ? 'Saved in this browser' : ''); }
+}
+function commitNoSave(){ redrawEverything(); updateUndo(); }
+
+/* ===================== Export, import, pictures ===================== */
+async function saveFile(filename, data){
+  if (!downloads){
+    // Inside claude.ai, plain downloads are blocked, so the capability is required.
+    if (window.claude){ toast("Saving files isn't available in this view."); return; }
+    // Running locally (e.g. opened from disk): fall back to a normal browser download.
+    const blob = data instanceof Blob ? data : new Blob([data]);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    return;
+  }
+  try { await downloads.save({ filename, data }); }
+  catch (e){ if (e && e.code !== 'cancelled' && e.code !== 'declined') toast("The file couldn't be saved."); }
+}
+$('#btnExport').onclick = () => saveFile('gpa-plan.json', new Blob([JSON.stringify(state, null, 2)], { type:'application/json' }));
+$('#btnImport').onclick = () => $('#importFile').click();
+$('#importFile').addEventListener('change', async () => {
+  const f = $('#importFile').files[0]; if (!f) return;
+  try {
+    const raw = JSON.parse(await f.text());
+    if (!raw || !Array.isArray(raw.placed)) throw new Error('bad');
+    pushHistory(); const keepT = Date.now();
+    state = normalize(raw); state.updatedAt = keepT; sel = null;
+    rebuildCatalog(); buildSelect(); commit(); toast('Plan imported.', true);
+  } catch (e){ toast("That file isn't a GPA plan. Export one from here first."); }
+  $('#importFile').value = '';
+});
+function canvasToBlob(c){ return new Promise(r => c.toBlob(r, 'image/png')); }
+$('#btnSavePic').onclick = async () => {
+  const k = 20, { w, h } = sectionSize(current), pad = 40;
+  const c = document.createElement('canvas'); c.width = Math.round(w*k + pad*2); c.height = Math.round(h*k + pad*2 + 30);
+  const ctx = c.getContext('2d'); ctx.fillStyle = '#2E5B48'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.save(); ctx.translate(pad, pad); const keep = sel; sel = null;
+  drawPanel(ctx, current, k, { sheen:true, labels:true, guides:true }); sel = keep; ctx.restore();
+  ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.font = '600 18px Archivo, sans-serif'; ctx.textBaseline = 'top';
+  ctx.fillText(`${SECTION_LABEL[current]}  (${r1(w)} × ${r1(h)} cm)`, pad, pad + h*k + 10);
+  saveFile(`gpa-${current}.png`, await canvasToBlob(c));
+};
+$('#snapshot').onclick = async () => {
+  if (!V.ok) return;
+  V.root.rotation.set(V.pitch, V.yaw, 0, 'XYZ'); V.renderer.render(V.scene, V.camera);
+  saveFile('gpa-3d.png', await canvasToBlob(V.renderer.domElement));
+};
+
+/* ===================== Start ===================== */
+function start(){
+  const local = loadLocal(); if (local) state = normalize(local);
+  rebuildCatalog(); buildTabs(); buildSelect(PRESETS[0].id);
+  init3D();
+  layoutEditor(); redrawEverything(); updateUndo();
+  setSaveState(local ? 'Saved in this browser' : '');
+  new ResizeObserver(() => { layoutEditor(); drawEditor(); }).observe(ed.wrap);
+  new ResizeObserver(() => { if ($('#maker').hidden){ const d = chosenDef(); if (d) drawPreview(d); } else syncMaker(); }).observe($('#itemPreview'));
+  if (document.fonts){ document.fonts.load('20px Graduate').then(() => redrawEverything()).catch(() => {}); document.fonts.ready.then(() => redrawEverything()); }
+  connectServices();
+}
+start();
+</script>
+</body>
+</html>

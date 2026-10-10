@@ -1,0 +1,23 @@
+{
+  "name": "gpa-planner",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "scrape": "node scripts/scrape-wiki.mjs"
+  },
+  "dependencies": {
+    "three": "0.128.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "exceljs": "4.4.0",
+    "vite": "8.3.4",
+    "vitest": "5.0.3"
+  }
+}
