@@ -4,9 +4,12 @@ import bars from '../data/bars.xlsx';
 import { BUILTINS, GROUPS, groupOf, sheetBarDef } from '../src/catalog.js';
 import { setState, normalize, rebuildCatalog, getDef, state } from '../src/state.js';
 
+// Sheet bars carry the sheet's type column; hand-added rows have no wiki pageid, so their id isn't wiki-.
+const isSheetBar = d => 'type' in d;
+
 describe('catalogue', () => {
   it('offers every included sheet bar', () => {
-    expect(BUILTINS.filter(d => d.id.startsWith('wiki-')).length).toBe(bars.length);
+    expect(BUILTINS.filter(isSheetBar).length).toBe(bars.length);
   });
   it('gives every item a unique id', () => {
     expect(new Set(BUILTINS.map(d => d.id)).size).toBe(BUILTINS.length);
@@ -26,7 +29,7 @@ describe('catalogue', () => {
     if (b) expect(groupOf({ id:b.id, cat:'bar', name:'Renamed' })).toBe('official');
   });
   it('never shows how a sheet bar is earned', () => {
-    expect(BUILTINS.filter(d => d.id.startsWith('wiki-') && d.note).map(d => d.name)).toEqual([]);
+    expect(BUILTINS.filter(d => isSheetBar(d) && d.note).map(d => d.name)).toEqual([]);
   });
 });
 
@@ -43,13 +46,13 @@ describe('loading old plans', () => {
   });
   it('has no preset with the same name as a sheet bar', () => {
     const names = new Set(bars.map(b => b.name.toLowerCase()));
-    expect(BUILTINS.filter(d => !d.id.startsWith('wiki-') && names.has(d.name.toLowerCase())).map(d => d.name)).toEqual([]);
+    expect(BUILTINS.filter(d => !isSheetBar(d) && names.has(d.name.toLowerCase())).map(d => d.name)).toEqual([]);
   });
 });
 
 describe('rebuildCatalog', () => {
   it('keeps a placement whose bar has left the list', () => {
-    setState(normalize({ v:1, placed:[{ uid:'a', item:'wiki-does-not-exist', section:'front', x:2, y:3, rot:0 }] }));
+    setState(normalize({ v:2, placed:[{ uid:'a', item:'wiki-does-not-exist', section:'front', x:2, y:3, rot:0 }] }));
     rebuildCatalog();
     expect(state.placed).toHaveLength(1);
     expect(getDef('wiki-does-not-exist').missing).toBe(true);

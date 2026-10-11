@@ -3,11 +3,34 @@
    Sizes are in centimetres. Bar sizes and colours below are placeholders.
    ===================================================================== */
 export const DEFAULT_MEAS = { chest:110, length:68, sleeve:64, sleeveCirc:38, waistband:6, cuff:6, zipper:3, gap:0.3 };
-export const DEFAULT_JACKET = { color:'#D4A017', lining:'#1B2A45' };
+// Leather colours, matched to photos: undyed GPAs are a khaki yellow, dyed ones a dark purple.
+// `worn` is what the leather turns where it rubs: undyed darkens to a patina, purple dye
+// wears through to tan (both from Nathaniel's photos).
+export const JACKET_COLOURS = [
+  { id:'undyed', label:'Yellow (undyed)', color:'#BCA66A', worn:'#8A7746' },
+  { id:'dyed', label:'Purple (dyed)', color:'#553750', worn:'#7A6247' },
+];
+// wear: 0 new, 1 heavily worn (the slider on the 3D view).
+export const DEFAULT_JACKET = { color:JACKET_COLOURS[0].color, lining:'#1C1C21', wear:0.3 };
 
-// A standard bar: about 12.1 × 2.9 cm, royal blue with a red border and gold lettering.
-// Real bars curve with the ends down (bounding box about 12.1 × 4.1 cm); that isn't drawn yet.
-export const BAR = { w:12.1, h:2.9, shape:'rect', bg:'#1D3F9A', fg:'#EAAA00', border:'#9D1939' };
+// Front details, from Nathaniel's photo of an open GPA (cm, or fractions of the front panel).
+export const FRONT = {
+  pocketW:5, pocketH:16,  // bounding box of each slanted welt pocket
+  pocketX:0.23,           // pocket centre, out from the middle, as a share of the front's width
+  pocketTop:0.5,          // pocket top, down from the shoulder, as a share of the body length
+};
+
+// Chenille lettering on felt backing (from Nathaniel's photos). The back letters are royal
+// blue on a dark red-brown backing that shows as a thin edge and fills the letters' holes.
+// The year digits are blue with a stitched red line, on a wide yellow felt backing.
+const BACK_LETTERS = { bg:'#2D3BB5', fg:'#2D3BB5', border:'#6F2427', backing:'#6F2427' };
+const YEAR_DIGITS = { bg:'#3D4FB8', fg:'#3D4FB8', border:'#C8283A', backing:'#F2C21E' };
+// Last two digits of the graduating year for this year's first-years (classes start in September).
+export function froshYear(now = new Date()){ return String((now.getFullYear() + (now.getMonth() >= 8 ? 4 : 3)) % 100).padStart(2, '0'); }
+
+// A standard bar: a 2.9 cm band (`band`) curved with the ends up, so its bounding box is
+// about 12.1 × 4.1 cm. Royal blue felt, red border, gold lettering (from Nathaniel's photos).
+export const BAR = { w:12.1, h:4.1, band:2.9, shape:'arc', bg:'#3556A8', fg:'#F2C230', border:'#C0283A' };
 
 // Built-in items that aren't in data/bars.xlsx. The wiki bars come from the sheet (see catalog.js).
 // Notes must never say how a bar is earned.
@@ -17,9 +40,13 @@ export const PRESETS = [
   { id:'bar-discipline', cat:'bar', name:'Discipline', text:'COMPUTER', ...BAR, note:'Your program. Traditionally on the right sleeve, below the pass crest. Edit the text per placement.' },
   { id:'bar-frosh', cat:'bar', name:'Frosh group', text:'FROSH GROUP', ...BAR, note:'Traditionally at the bottom left of the back.' },
   { id:'bar-blank', cat:'bar', name:'Blank bar', text:'BAR', ...BAR, note:'Rename it on the jacket to stand in for any bar.' },
+  // Traditional pieces. New jackets start with these in their spots (see layout.js).
+  { id:'trad-qas', cat:'patch', name:"QUEEN'S APPLIED SCIENCE", text:'', w:38.6, h:30.5, shape:'qas', ...BACK_LETTERS, trad:true, note:'Upper back. The letters are sewn on as one block.' },
+  { id:'trad-uni-motto', cat:'patch', name:'University motto', text:'QUIS·DOLOR·CUI·DOLIUM', w:11.4, h:3.8, shape:'scroll', bg:'#2F4AA0', fg:'#F2C230', border:'#D23A2A', trad:true, note:'Top of the right sleeve.' },
+  { id:'patch-pass', cat:'patch', name:'Pass crest', text:'PASS', w:6.6, h:9.5, shape:'shield', bg:'#002452', fg:'#EAAA00', border:'#9D1939', trad:true, note:'Right sleeve, below the university motto, after first year. Upload a photo of yours to replace this stand-in.' },
+  { id:'trad-year-motto', cat:'patch', name:'Year motto', text:'YEAR MOTTO', w:11.4, h:3.8, shape:'scroll', bg:'#9D1939', fg:'#FFFFFF', border:'#EAAA00', trad:true, note:"Top of the left sleeve. Type your year's motto in 'Text on this one'." },
+  { id:'patch-year', cat:'patch', name:'Year number', text:froshYear(), w:12, h:9, shape:'chenille', ...YEAR_DIGITS, trad:true, note:'Left sleeve, below the year motto: the last two digits of your graduating year.' },
   // Patches
-  { id:'patch-pass', cat:'patch', name:'Pass crest', text:'PASS', w:8, h:8, shape:'circle', bg:'#002452', fg:'#EAAA00', border:'#9D1939', note:'Goes on the right sleeve after first year.' },
-  { id:'patch-year', cat:'patch', name:'Year number', text:'29', w:9, h:7, shape:'text', bg:'#EAAA00', fg:'#002452', border:'#EAAA00', note:'Your graduating year, traditionally on the left sleeve.' },
   { id:'patch-dept', cat:'patch', name:'Department crest', text:'ECE', w:7, h:7, shape:'circle', bg:'#FFFFFF', fg:'#002452', border:'#002452', note:'' },
   { id:'patch-club', cat:'patch', name:'Club patch', text:'CLUB', w:7, h:6, shape:'round', bg:'#132039', fg:'#FFFFFF', border:'#EAAA00', note:'Stand-in for a team or club patch.' },
   // Flags

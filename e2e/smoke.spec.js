@@ -79,3 +79,52 @@ test('searching and filtering the bar list', async ({ page }, info) => {
   await expect(page.locator('#btnAdd')).toBeDisabled();
   expect(info.errors).toEqual([]);
 });
+
+test('a new jacket has its traditional pieces, and the leather colour switches', async ({ page }, info) => {
+  await expect(page.locator('.tab[data-s="back"] .count')).toHaveText('1');
+  await expect(page.locator('.tab[data-s="leftSleeve"] .count')).toHaveText('2');
+  await expect(page.locator('.tab[data-s="rightSleeve"] .count')).toHaveText('2');
+  await expect(page.locator('.site-foot')).toContainText('A Nathaniel Felsky-Deelstra production');
+
+  const [yellow, purple] = [page.getByRole('button', { name:'Yellow (undyed)' }), page.getByRole('button', { name:'Purple (dyed)' })];
+  await expect(yellow).toHaveAttribute('aria-pressed', 'true');
+  await purple.click();
+  await expect(purple).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('#btnUndo').click();
+  await expect(yellow).toHaveAttribute('aria-pressed', 'true');
+
+  // Re-adding a traditional piece sends it to its own section, not the current one.
+  await page.locator('#itemSearch').fill('pass crest');
+  await expect(page.locator('#btnAdd')).toHaveText('Add to right sleeve');
+  await page.locator('#btnAdd').click();
+  await expect(page.locator('.tab[data-s="rightSleeve"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.tab[data-s="rightSleeve"] .count')).toHaveText('3');
+  expect(info.errors).toEqual([]);
+});
+
+test('the wear slider, the big 3D view, and clicking the jacket in 3D', async ({ page }, info) => {
+  // Wear: dragging previews, letting go saves, and it survives a reload.
+  await page.locator('#wear').fill('1');
+  await page.locator('#wear').dispatchEvent('change');
+  await expect(page.locator('#saveState')).toHaveText('Saved in this browser');
+  await page.reload();
+  await expect(page.locator('#wear')).toHaveValue('1');
+
+  // Expand and close the 3D view.
+  await page.locator('#expand').click();
+  await expect(page.locator('.viewer')).toHaveClass(/expanded/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.viewer')).not.toHaveClass(/expanded/);
+
+  // Turn to the back and click the middle of the jacket: that's the QUEEN'S APPLIED SCIENCE block.
+  await page.locator('.tab[data-s="back"]').click();
+  await page.waitForTimeout(1500); // the turn animates
+  await page.locator('.tab[data-s="front"]').click(); // leave the back, so the click has to switch to it
+  await page.evaluate(() => { const v = window.__V; v.yaw = Math.PI; v.targetYaw = null; v.dirty = true; });
+  await page.waitForTimeout(300);
+  const box = await page.locator('#three').boundingBox();
+  await page.mouse.click(box.x + box.width/2, box.y + box.height*0.42);
+  await expect(page.locator('.tab[data-s="back"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#inspector strong')).toHaveText("QUEEN'S APPLIED SCIENCE");
+  expect(info.errors).toEqual([]);
+});

@@ -4,7 +4,7 @@ import { SECTIONS } from './config.js';
 import { $ } from './util.js';
 import { state, sel, setSel, current, rebuildCatalog } from './state.js';
 import { layoutEditor, drawEditor } from './editor2d.js';
-import { V, builtKey, build3D, renderTexture } from './jacket3d.js';
+import { V, builtKey, buildKeyFor, build3D, renderTexture, refreshSwatch } from './jacket3d.js';
 import { updateTabs, renderInspector, renderSpace } from './panels.js';
 import { buildSelect, chosenDef, drawPreview } from './catalog-ui.js';
 import { scheduleSave } from './storage.js';
@@ -14,12 +14,19 @@ export function liveUpdate(){
   if (liveQueued) return; liveQueued = true;
   requestAnimationFrame(() => { liveQueued = false; drawEditor(); renderTexture(current); updateTabs(); });
 }
+// Like liveUpdate, but for changes that touch every section (the wear slider).
+let allQueued = false;
+export function liveUpdateAll(){
+  if (allQueued) return; allQueued = true;
+  requestAnimationFrame(() => { allQueued = false; drawEditor(); for (const s of SECTIONS) renderTexture(s); refreshSwatch(); });
+}
 export function commit(){
   redrawEverything(); scheduleSave(); updateUndo();
 }
 export function commitNoSave(){ redrawEverything(); updateUndo(); }
 export function redrawEverything(){
-  if (V.ok && builtKey !== JSON.stringify([state.meas, state.jacket])) build3D();
+  // The 3D shape only changes with the measurements and colours; wear is just texture.
+  if (V.ok && builtKey !== buildKeyFor()) build3D(); else refreshSwatch();
   layoutEditor(); drawEditor(); updateTabs(); renderInspector(); renderSpace();
   for (const s of SECTIONS) renderTexture(s);
   const d = chosenDef(); if (d && $('#maker').hidden) drawPreview(d);

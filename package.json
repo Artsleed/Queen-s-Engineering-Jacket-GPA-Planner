@@ -12,7 +12,7 @@
     "scrape": "node scripts/scrape-wiki.mjs"
   },
   "dependencies": {
-    "three": "0.128.0"
+    "three": "0.185.1"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",

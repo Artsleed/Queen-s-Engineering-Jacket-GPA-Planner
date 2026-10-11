@@ -6,7 +6,7 @@
 <title>GPA Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Graduate&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;900&family=Graduate&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
@@ -54,7 +54,7 @@
           <select id="mkCat"><option value="bar">Bar</option><option value="patch">Patch</option><option value="flag">Flag</option></select>
         </label>
         <label class="field"><span>Shape</span>
-          <select id="mkShape"><option value="rect">Rectangle</option><option value="round">Rounded</option><option value="circle">Circle</option><option value="shield">Shield</option><option value="text">Letters only</option></select>
+          <select id="mkShape"><option value="arc">Curved bar</option><option value="scroll">Scroll</option><option value="rect">Rectangle</option><option value="round">Rounded</option><option value="circle">Circle</option><option value="shield">Shield</option><option value="text">Letters only</option></select>
         </label>
       </div>
       <label class="field"><span>Name in the list</span><input type="text" id="mkName" maxlength="40" placeholder="e.g. Iron ring"></label>
@@ -112,13 +112,20 @@
   <aside class="side">
     <div class="pane viewer">
       <canvas id="three" aria-label="3D preview of the jacket. Drag to spin."></canvas>
+      <div class="viewer-top">
+      <div class="viewer-colour" role="group" aria-label="Jacket colour" id="leatherPick"></div>
       <div class="viewer-tools">
         <button class="btn icon" id="zoomOut" aria-label="Zoom out">−</button>
         <button class="btn icon" id="zoomIn" aria-label="Zoom in">+</button>
         <button class="btn" id="snapshot">Snapshot</button>
+        <button class="btn icon" id="expand" aria-label="Expand the 3D view" aria-pressed="false" title="Expand">&#x2922;</button>
+      </div>
       </div>
       <div class="viewer-fail" id="viewerFail">The 3D preview couldn't start in this browser. The flat editor still works.</div>
-      <p class="viewer-hint">Drag to spin. Tap a section to edit it.</p>
+      <div class="viewer-bar">
+        <label class="wear"><span>New</span><input type="range" id="wear" min="0" max="1" step="0.05" aria-label="How worn the leather looks"><span>Worn</span></label>
+        <p class="viewer-hint">Drag to spin. Tap a section to edit it.</p>
+      </div>
     </div>
     <div class="pane" id="inspector" aria-live="polite"></div>
     <div class="pane">
@@ -129,6 +136,7 @@
 </main>
 
 <footer class="site-foot">
+  <p class="credit">A Nathaniel Felsky-Deelstra production</p>
   <p>An unofficial, student-made planner. Not affiliated with or endorsed by Queen's University.</p>
 </footer>
 
@@ -143,9 +151,8 @@
       <label class="field"><span>Sleeve circumference (cm)</span><input type="number" id="mSleeveCirc" min="20" max="70" step="0.5"></label>
       <label class="field"><span>Waistband height (cm)</span><input type="number" id="mWaist" min="0" max="20" step="0.5"></label>
       <label class="field"><span>Cuff height (cm)</span><input type="number" id="mCuff" min="0" max="20" step="0.5"></label>
-      <label class="field"><span>Zipper strip width (cm)</span><input type="number" id="mZip" min="0" max="10" step="0.5"></label>
+      <label class="field"><span>Front opening strip (cm)</span><input type="number" id="mZip" min="0" max="10" step="0.5"></label>
       <label class="field"><span>Gap between patches (cm)</span><input type="number" id="mGap" min="0" max="3" step="0.1"></label>
-      <label class="field"><span>Jacket colour</span><input type="color" id="mColor"></label>
       <label class="field"><span>Lining colour</span><input type="color" id="mLining"></label>
     </div>
     <div class="row">

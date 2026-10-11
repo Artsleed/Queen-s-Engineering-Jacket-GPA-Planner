@@ -3,7 +3,10 @@ import { BAR, SECTION_LABEL } from './config.js';
 import { GROUPS, GROUP_LABEL, groupOf } from './catalog.js';
 import { $, clamp, r1, newId, rgbToHex } from './util.js';
 import { state, catMap, current, sel, setSel, getDef, isCustom, isEditedPreset, rebuildCatalog, sectionSize } from './state.js';
-import { findSpot } from './fit.js';
+import { findSpot, conflicts } from './fit.js';
+import { localOutline } from './shapes.js';
+import { traditionalSpots } from './layout.js';
+import { setSection } from './panels.js';
 import { drawItem } from './draw.js';
 import { pushHistory, commit, toast } from './pipeline.js';
 
@@ -35,8 +38,9 @@ export function buildSelect(keep){
     s.append(og); shown += list.length;
   }
   $('#itemCount').textContent = shown ? `${shown} ${shown === 1 ? 'match' : 'matches'}` : 'Nothing matches. Try another word, or make your own.';
-  const ids = [...s.options].map(o => o.value);
-  s.value = ids.includes(keep) ? keep : (ids[0] ?? '');
+  // With nothing chosen yet, start on a bar rather than a traditional piece (those are already on).
+  const ids = [...s.options].map(o => o.value), firstBar = ids.find(id => groupOf(getDef(id)) !== 'traditional');
+  s.value = ids.includes(keep) ? keep : (firstBar ?? ids[0] ?? '');
   showChosen();
 }
 export function chosenDef(){ return getDef($('#itemSelect').value); }
@@ -51,6 +55,7 @@ function showChosen(){
   $('#pvName').textContent = d.name;
   $('#pvSize').textContent = `${r1(d.w)} × ${r1(d.h)} cm`;
   $('#pvCat').textContent = GROUP_LABEL[groupOf(d)];
+  refreshAddLabel();
   $('#pvNote').textContent = d.note || '';
   $('#btnDeleteItem').textContent = isCustom(d.id) ? 'Delete item' : 'Reset to default';
   $('#btnDeleteItem').hidden = !isCustom(d.id) && !isEditedPreset(d.id);
@@ -108,11 +113,17 @@ function readMaker(){
   let flag = null;
   if (dir) flag = { type:dir, colors:[mk('mkF1').value, mk('mkF2').value, mk('mkF3').value].slice(0, n) };
   else if (maker.flagKeep) flag = maker.flagKeep;
+  // Keep fields the form doesn't show (band thickness, lettering style, traditional spot).
+  const keep = maker.editing ? getDef(maker.editing) : {}, shape = mk('mkShape').value || keep.shape || 'rect', h = clamp(+mk('mkH').value || 1, 0.5, 60);
+  const extra = { font:keep.font, edge:keep.edge, trad:keep.trad };
+  if (shape === 'arc') extra.band = Math.min(keep.band ?? BAR.band, h);
+  for (const k of Object.keys(extra)) if (extra[k] === undefined) delete extra[k];
   return {
+    ...extra,
     id: maker.editing || ('c-' + newId()),
     cat: mk('mkCat').value, name: mk('mkName').value.trim() || 'Untitled', text: mk('mkText').value.trim(),
-    w: clamp(+mk('mkW').value || 1, 0.5, 60), h: clamp(+mk('mkH').value || 1, 0.5, 60),
-    shape: mk('mkShape').value, bg: mk('mkBg').value, fg: mk('mkFg').value, border: mk('mkBorder').value,
+    w: clamp(+mk('mkW').value || 1, 0.5, 60), h,
+    shape, bg: mk('mkBg').value, fg: mk('mkFg').value, border: mk('mkBorder').value,
     note: mk('mkNote').value.trim(), flag, img: maker.photo || null,
   };
 }
@@ -164,11 +175,28 @@ $('#btnDeleteItem').onclick = () => {
   toast(isCustom(d.id) ? `Deleted ${d.name}.` : `${d.name} is back to default.`, true);
   commit();
 };
+// Traditional pieces go to their own spot (switching section), other items to the current section.
+const homeOf = d => d && d.trad ? traditionalSpots(state.meas, getDef)[d.id] : null;
+export function refreshAddLabel(){
+  const home = homeOf(chosenDef());
+  $('#btnAdd').textContent = `Add to ${SECTION_LABEL[home ? home.section : current].toLowerCase()}`;
+}
 $('#btnAdd').onclick = () => {
   const d = chosenDef(); if (!d) return;
   pushHistory();
-  let spot = findSpot(current, d.w, d.h), rot = 0;
-  if (!spot && d.w !== d.h){ spot = findSpot(current, d.h, d.w); if (spot) rot = 90; }
+  const home = homeOf(d);
+  if (home && home.section !== current) setSection(home.section, true);
+  if (home){
+    const p = { uid:newId(), item:d.id, section:current, x:r1(home.x), y:r1(home.y), rot:0, text: d.id === 'patch-year' ? d.text : null };
+    state.placed.push(p);
+    if (conflicts(current).has(p.uid)){ // its spot is taken: fall back to the nearest free space
+      const spot = findSpot(current, d.w, d.h, p.uid, localOutline(d, 0));
+      if (spot){ p.x = spot.x; p.y = spot.y; toast(`Its usual spot is taken, so ${d.name} went in the nearest free space.`); }
+    }
+    setSel(p.uid); commit(); return;
+  }
+  let spot = findSpot(current, d.w, d.h, null, localOutline(d, 0)), rot = 0;
+  if (!spot && d.w !== d.h){ spot = findSpot(current, d.h, d.w, null, localOutline(d, 90)); if (spot) rot = 90; }
   const p = { uid:newId(), item:d.id, section:current, x:0, y:0, rot, text:null };
   if (spot){ p.x = spot.x; p.y = spot.y; }
   else { const { w } = sectionSize(current); p.x = r1(Math.max(0, (w - d.w)/2)); p.y = 2; toast(`No free space left on the ${SECTION_LABEL[current].toLowerCase()}. It's placed, but overlapping.`); }

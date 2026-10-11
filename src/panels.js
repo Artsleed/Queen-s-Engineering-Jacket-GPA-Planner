@@ -1,11 +1,13 @@
 /* ===================== Tabs, inspector, space ===================== */
-import { SECTIONS, SECTION_LABEL, DEFAULT_MEAS, DEFAULT_JACKET } from './config.js';
+import { SECTIONS, SECTION_LABEL, DEFAULT_MEAS, DEFAULT_JACKET, JACKET_COLOURS } from './config.js';
 import { $, clamp, r1, newId } from './util.js';
 import { state, current, sel, setCurrent, setSel, getDef, sectionSize, noGoZones, dims } from './state.js';
 import { conflicts, findSpot } from './fit.js';
+import { localOutline, coverage } from './shapes.js';
 import { layoutEditor, drawEditor } from './editor2d.js';
+import { refreshAddLabel } from './catalog-ui.js';
 import { focusSection, renderTexture } from './jacket3d.js';
-import { pushHistory, commit, liveUpdate, toast } from './pipeline.js';
+import { pushHistory, commit, liveUpdate, liveUpdateAll, toast } from './pipeline.js';
 import { scheduleSave } from './storage.js';
 
 export function buildTabs(){
@@ -19,14 +21,42 @@ export function buildTabs(){
     t.append(b);
   }
 }
+// Yellow / purple switch on the 3D view. A custom colour from the size dialog lights neither.
+export function buildLeatherPick(){
+  const el = $('#leatherPick'); el.innerHTML = '';
+  for (const c of JACKET_COLOURS){
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.color = c.color; b.title = c.label;
+    b.innerHTML = '<i aria-hidden="true"></i><span></span>';
+    b.querySelector('i').style.background = c.color; b.querySelector('span').textContent = c.label.split(' ')[0];
+    b.setAttribute('aria-label', c.label);
+    b.onclick = () => { if (state.jacket.color === c.color) return; pushHistory(); state.jacket.color = c.color; commit(); };
+    el.append(b);
+  }
+}
+// New-to-worn slider. Dragging previews live; letting go saves (one undo step per drag).
+const wear = $('#wear');
+let wearDragging = false;
+wear.addEventListener('input', () => {
+  if (!wearDragging){ pushHistory(); wearDragging = true; }
+  state.jacket.wear = +wear.value; liveUpdateAll();
+});
+wear.addEventListener('change', () => { wearDragging = false; state.jacket.wear = +wear.value; commit(); });
+// Expand the 3D view to fill the window (Esc or the button again to close).
+const viewer = document.querySelector('.viewer'), expand = $('#expand');
+const setExpanded = on => { viewer.classList.toggle('expanded', on); expand.setAttribute('aria-pressed', String(on)); expand.setAttribute('aria-label', on ? 'Close the big 3D view' : 'Expand the 3D view'); };
+expand.onclick = () => setExpanded(!viewer.classList.contains('expanded'));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && viewer.classList.contains('expanded')) setExpanded(false); });
+
 export function updateTabs(){
+  if (document.activeElement !== wear) wear.value = String(state.jacket.wear ?? 0);
+  for (const b of document.querySelectorAll('#leatherPick button')) b.setAttribute('aria-pressed', String(b.dataset.color.toLowerCase() === state.jacket.color.toLowerCase()));
   for (const b of document.querySelectorAll('.tab')){
     const s = b.dataset.s, n = state.placed.filter(p => p.section === s).length;
     b.setAttribute('aria-selected', String(s === current));
     b.querySelector('.count').textContent = n ? n : '';
     b.classList.toggle('has-issue', conflicts(s).size > 0);
   }
-  $('#btnAdd').textContent = `Add to ${SECTION_LABEL[current].toLowerCase()}`;
+  refreshAddLabel();
 }
 export function setSection(s, focus){
   if (current !== s){ setCurrent(s); const p = state.placed.find(q => q.uid === sel); if (p && p.section !== s) setSel(null); }
@@ -73,13 +103,13 @@ export function renderInspector(){
   $('#iX').addEventListener('change', setPos); $('#iY').addEventListener('change', setPos);
   const ss = $('#iSec'); for (const s of SECTIONS) ss.append(new Option(SECTION_LABEL[s], s)); ss.value = p.section;
   ss.addEventListener('change', () => {
-    pushHistory(); const to = ss.value, spot = findSpot(to, dm.w, dm.h, p.uid);
+    pushHistory(); const to = ss.value, spot = findSpot(to, dm.w, dm.h, p.uid, localOutline(d, p.rot));
     p.section = to; if (spot){ p.x = spot.x; p.y = spot.y; } else { p.x = 0; p.y = 0; toast(`No free space on the ${SECTION_LABEL[to].toLowerCase()}. It's placed, but overlapping.`); }
     setSection(to, true); commit();
   });
   $('#iRot').onclick = rotateSel; $('#iDel').onclick = removeSel;
   $('#iDup').onclick = () => {
-    pushHistory(); const spot = findSpot(p.section, dm.w, dm.h);
+    pushHistory(); const spot = findSpot(p.section, dm.w, dm.h, null, localOutline(d, p.rot));
     const q = { ...p, uid:newId(), x:spot ? spot.x : p.x + 1, y:spot ? spot.y : p.y + 1 };
     state.placed.push(q); setSel(q.uid);
     if (!spot) toast('No free space for the copy. It overlaps for now.');
@@ -102,7 +132,7 @@ export function removeSel(){
   toast(`Removed ${getDef(p.item).name}.`, true);
   commit();
 }
-function shapeArea(p){ const d = getDef(p.item); const f = d.shape === 'circle' ? Math.PI/4 : d.shape === 'shield' ? 0.86 : 1; return d.w*d.h*f; }
+function shapeArea(p){ const d = getDef(p.item); return d.w*d.h*coverage(d); }
 export function renderSpace(){
   const el = $('#space'); el.innerHTML = '';
   for (const s of SECTIONS){
@@ -126,7 +156,7 @@ export function renderSpace(){
 const MFIELDS = { mChest:'chest', mLength:'length', mSleeve:'sleeve', mSleeveCirc:'sleeveCirc', mWaist:'waistband', mCuff:'cuff', mZip:'zipper', mGap:'gap' };
 function fillMeasure(meas, jacket){
   for (const [id, k] of Object.entries(MFIELDS)) $('#' + id).value = meas[k];
-  $('#mColor').value = jacket.color; $('#mLining').value = jacket.lining;
+  $('#mLining').value = jacket.lining;
 }
 $('#btnMeasure').onclick = () => { fillMeasure(state.meas, state.jacket); $('#measureDlg').showModal(); };
 $('#mCancel').onclick = () => $('#measureDlg').close();
@@ -137,7 +167,7 @@ $('#mSave').onclick = () => {
     const el = $('#' + id), v = +el.value;
     if (isFinite(v) && el.value !== '') state.meas[k] = clamp(v, +el.min, +el.max);
   }
-  state.jacket.color = $('#mColor').value; state.jacket.lining = $('#mLining').value;
+  state.jacket.lining = $('#mLining').value;
   $('#measureDlg').close(); commit();
   const issues = SECTIONS.reduce((a, s) => a + conflicts(s).size, 0);
   toast(issues ? `Size updated. ${issues} ${issues === 1 ? 'item no longer fits' : 'items no longer fit'}.` : 'Size updated.');

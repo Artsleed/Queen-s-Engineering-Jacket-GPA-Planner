@@ -1,0 +1,44 @@
+/* ===================== Traditional layout ===================== */
+// Where the traditional pieces go. Pure logic: no DOM. Tested in tests/layout.test.js.
+//
+// Positions are cm from the section's top-left corner (see CLAUDE.md). Sleeves
+// are centred on the outer-side line; y = 0 is the shoulder seam.
+import { froshYear } from './config.js';
+import { topAt } from './zones.js';
+
+const GAP = 1.5;   // cm between stacked sleeve pieces
+const TOP = 3;     // cm from the shoulder seam to the first sleeve piece (at the outer side)
+const CAP = 1;     // cm clear of the sleeve cap's curve, where it dips toward the underarm
+const BACK_TOP = 7; // cm from the neckline to the top of QUEEN'S (the collar covers the first 5.5)
+
+// item id -> { section, x, y } for a jacket with these measurements.
+// `size(id)` gives an item's { w, h } so this file doesn't depend on the catalogue.
+export function traditionalSpots(meas, size){
+  const sleeveW = meas.sleeveCirc, backW = meas.chest/2;
+  const centred = (W, id) => Math.max(0, (W - size(id).w)/2);
+  // The first piece on each sleeve sits below the shoulder seam, clear of the cap's curve.
+  const first = (section, id) => {
+    const x = centred(sleeveW, id), w = size(id).w;
+    let top = 0;
+    for (let i = 0; i <= 8; i++) top = Math.max(top, topAt(section, meas, x + w*i/8));
+    return Math.max(TOP, top + CAP);
+  };
+  const below = (section, id) => first(section, id) + size(id).h + GAP;
+  return {
+    'trad-qas':        { section:'back',        x:centred(backW, 'trad-qas'),         y:BACK_TOP },
+    'trad-uni-motto':  { section:'rightSleeve', x:centred(sleeveW, 'trad-uni-motto'),  y:first('rightSleeve', 'trad-uni-motto') },
+    'patch-pass':      { section:'rightSleeve', x:centred(sleeveW, 'patch-pass'),      y:below('rightSleeve', 'trad-uni-motto') },
+    'trad-year-motto': { section:'leftSleeve',  x:centred(sleeveW, 'trad-year-motto'), y:first('leftSleeve', 'trad-year-motto') },
+    'patch-year':      { section:'leftSleeve',  x:centred(sleeveW, 'patch-year'),      y:below('leftSleeve', 'trad-year-motto') },
+  };
+}
+
+// The placements a brand-new jacket starts with. `skip` lists item ids already on the jacket.
+export function traditionalPlacements(meas, size, newId, skip = new Set()){
+  const r1 = v => Math.round(v*10)/10;
+  return Object.entries(traditionalSpots(meas, size)).filter(([id]) => !skip.has(id)).map(([item, s]) => ({
+    uid:newId(), item, section:s.section, x:r1(s.x), y:r1(s.y), rot:0,
+    // The year number is stored, so it doesn't change when the calendar does.
+    text: item === 'patch-year' ? froshYear() : null,
+  }));
+}

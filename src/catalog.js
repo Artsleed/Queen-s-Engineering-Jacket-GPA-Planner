@@ -20,6 +20,7 @@ export const BUILTIN_MAP = new Map(BUILTINS.map(d => [d.id, d]));
 
 // Picker groups, in the order they're listed. `type` is the sheet's type column.
 export const GROUPS = [
+  ['traditional', 'Traditional pieces'],
   ['official', 'Shenanigans: official'],
   ['experimental', 'Shenanigans: experimental'],
   ['academic', 'Academic & extracurricular'],
@@ -36,6 +37,7 @@ export const GROUP_LABEL = Object.fromEntries(GROUPS);
 export function groupOf(d){
   const b = BUILTIN_MAP.get(d.id);
   if (!b) return 'yours';
+  if (b.trad) return 'traditional';
   if ('type' in b) return GROUP_LABEL[b.type] ? b.type : 'unsorted';
   return b.cat === 'bar' ? 'basic' : b.cat;
 }
