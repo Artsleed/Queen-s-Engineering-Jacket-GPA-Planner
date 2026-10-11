@@ -3,7 +3,8 @@ import { SNAP_STEP } from './config.js';
 import { $, clamp, r1 } from './util.js';
 import { state, current, sel, sectionSize, dims } from './state.js';
 import { drawPanel } from './draw.js';
-import { pushHistory, commit, liveUpdate, undoStack, updateUndo } from './pipeline.js';
+import { pushHistory, commit, liveUpdate, undoStack, updateUndo, toast } from './pipeline.js';
+import { settle, settleNote } from './fit.js';
 import { select, rotateSel, removeSel } from './panels.js';
 
 export const ed = { canvas: $('#mat'), wrap: $('#matWrap'), dpr:1, scale:1, ox:0, oy:0, cw:0, ch:0 };
@@ -80,7 +81,8 @@ ed.canvas.addEventListener('pointermove', ev => {
 });
 function endDrag(){
   if (!drag) return;
-  if (!drag.moved){ undoStack.pop(); updateUndo(); } else commit();
+  if (!drag.moved){ undoStack.pop(); updateUndo(); }
+  else { const p = state.placed.find(q => q.uid === drag.uid), why = p && settle(p); commit(); if (why) toast(settleNote(p, why)); }
   drag = null; ed.canvas.style.cursor = 'grab';
 }
 ed.canvas.addEventListener('pointerup', endDrag);
@@ -93,7 +95,7 @@ ed.canvas.addEventListener('keydown', ev => {
     ev.preventDefault(); pushHistory();
     const d = dims(p), { w, h } = sectionSize(p.section);
     p.x = r1(clamp(p.x + mv[0], 0, Math.max(0, w - d.w))); p.y = r1(clamp(p.y + mv[1], 0, Math.max(0, h - d.h)));
-    commit();
+    const why = settle(p); commit(); if (why) toast(settleNote(p, why));
   } else if (ev.key === 'r' || ev.key === 'R'){ ev.preventDefault(); rotateSel(); }
   else if (ev.key === 'Delete' || ev.key === 'Backspace'){ ev.preventDefault(); removeSel(); }
   else if (ev.key === 'Escape'){ select(null); }

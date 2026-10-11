@@ -41,14 +41,37 @@ export function conflicts(section){
   }
   return bad;
 }
+// Why a placed item can't be sewn where it is: the no-go zone it covers, or 'edge' if it
+// hangs off the panel. null if it's fine there (overlapping another patch doesn't count).
+export function zoneProblem(p){
+  const { w, h } = sectionSize(p.section), b = { x:p.x, y:p.y, ...dims(p), fp:footprint(p) };
+  if (b.x < -1e-6 || b.y < -1e-6 || b.x + b.w > w + 1e-6 || b.y + b.h > h + 1e-6) return 'edge';
+  return noGoZones(p.section).find(z => zoneClash(b, z)) || null;
+}
+// After a move: if the item ended up somewhere it can't be sewn (the cuff, a pocket, the
+// sleeve cap...), put it in the nearest spot that's free. Returns what it was moved off
+// (a zone, or 'edge'), or null if it didn't need moving or there's nowhere to put it.
+export function settle(p){
+  const why = zoneProblem(p);
+  if (!why) return null;
+  const dm = dims(p), spot = findSpot(p.section, dm.w, dm.h, p.uid, localOutline(getDef(p.item), p.rot), { x:p.x, y:p.y });
+  if (!spot) return null;
+  p.x = spot.x; p.y = spot.y;
+  return why;
+}
+// A short note for the toast after settle() moved something.
+export const settleNote = (p, why) => why === 'edge' ? `Moved ${getDef(p.item).name} back onto the panel.`
+  : `Moved ${getDef(p.item).name} off the ${why.label.toLowerCase()}: nothing can be sewn there.`;
+
 // Nearest free spot to the section's anchor for an iw × ih item. `local` is the
 // item's outline (from localOutline); leave it out to treat it as a plain box.
-export function findSpot(section, iw, ih, skipUid, local = rectOutline(iw, ih)){
+// `near` ({ x, y }) searches out from there instead, evenly in every direction.
+export function findSpot(section, iw, ih, skipUid, local = rectOutline(iw, ih), near = null){
   const { w, h } = sectionSize(section), gap = state.meas.gap, zones = noGoZones(section);
   const others = state.placed.filter(p => p.section === section && p.uid !== skipUid).map(p => ({ x:p.x, y:p.y, ...dims(p), fp:footprint(p) }));
-  const anchor = section === 'front' ? { x:w*0.75 - iw/2, y:10 } : section === 'back' ? { x:w/2 - iw/2, y:8 } : { x:w/2 - iw/2, y:4 };
+  const anchor = near || (section === 'front' ? { x:w*0.75 - iw/2, y:10 } : section === 'back' ? { x:w/2 - iw/2, y:8 } : { x:w/2 - iw/2, y:4 });
   // On sleeves, items stack down the outer side, so moving sideways costs more than moving down.
-  const kx = section === 'leftSleeve' || section === 'rightSleeve' ? 4 : 1;
+  const kx = !near && (section === 'leftSleeve' || section === 'rightSleeve') ? 4 : 1;
   // Try grid spots nearest-first and stop at the first free one.
   const spots = [];
   for (let y = 0; y + ih <= h + 1e-6; y += SNAP_STEP)

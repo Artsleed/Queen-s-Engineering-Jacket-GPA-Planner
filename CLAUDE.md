@@ -173,10 +173,12 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
 `model.js` builds the jacket as pure geometry in cm; `jacket3d.js` turns it into meshes (scene units are metres, the model group is scaled by 0.01).
 
 - **Body.** `bodyDims` scales everything from the chest and body length: a superellipse torso (boxier than an ellipse, fuller in front), shoulder and neck points, armpit depth. Worn on an invisible person with the arms relaxed.
-- **Panels are grids** (`pos`, `normal`, `ao`). Column i maps to texture u across the section, row j to v down from the top edge. Rows are placed by true distance along the surface, measured up from the hem or cuff, so a cm on the flat panel is a cm in 3D (tested within about 5%). Where the real piece is shorter than the rectangle, the top rows pile up at the edge: that's a cut-away.
+- **Panels are grids** (`pos`, `normal`, `ao`). Column i maps to texture u across the section, row j to v down from the top edge, so a cm on the flat panel is a cm in 3D (tested within about 5%). Rows must line up across columns, or patches shear:
+  - Torso: up to the armpit a row is a level ring (heights found by distance up a reference column: the middle of the back, the middle of each front half). Above it, each column shares out the remaining rows over its own length so all columns reach the top edge together; a column too short to reach it (the neckline) stops early and leaves a cut-away.
+  - Sleeves: rows are rings square to the arm, placed by distance up the outer side from the cuff, so bars sit straight across the arm. Above where a column joins its cap it continues up the cap by its own length; columns that run out are the sleeve-cap cut-away.
   - **Torso:** each column runs up the side of the body, then curves in over the shoulder (a Hermite curve) to the top edge (shoulder seam and neckline), arriving level so front and back meet smoothly. The armhole edges bow forward and back to leave room for the sleeve. The front is two halves, pulled apart at the front edges (`openFront`) because GPAs are worn open.
   - **Sleeves:** a tube round a curved arm axis (slightly out from the body, bent forward at the elbow), joined to the armhole by a rounded cap. The arm is shortened so the outer side's length, cap included, matches the sleeve length. More of the armhole goes to the underarm columns so the cap is flat on top.
-  - **Folds** (`surface.js`) push the surface out along its normals: bunching above the cuffs, inside the elbows, blousing over the waistband, drape by the front edges. They fade out at seams so the panels still meet. The same folds shade the leather texture.
+  - **Folds** (`surface.js`) push the surface out along its normals: bunching above the cuffs, inside the elbows, blousing over the waistband, drape by the front edges. They fade out at seams so the panels still meet. The same folds shade the leather texture. Felt patches are stiff, so `flattenUnderPatches` in `jacket3d.js` reapplies the folds (`applyFolds`) with them flattened under each patch whenever a section's patches change.
   - **Shading:** per-vertex ambient occlusion (`ao`) darkens fold valleys, the body under the arms and the inside of the sleeves; the key light also casts real shadows.
 - **Collar and lapels** are built on the panels (`panelAt`): a folded shirt collar round the neck with its points on the chest, and lapels folded back from the front edges. Their outlines are the `lapel` and `collar` zones, so 2D and 3D agree.
 - **Thickness:** each panel has a lining shell 0.45 cm inside it, and the free edges (hems, cuffs, front edges) get a rounded edge strip.
@@ -196,7 +198,8 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
   - items off the edge
   - items on no-go zones
   - items overlapping or closer than `meas.gap`
-- `findSpot(section, w, h, skipUid, local)` tries a 0.5 cm grid nearest-first from a per-section anchor and returns the first free spot. `local` is the item's outline (`localOutline(def, rot)`). On sleeves, sideways moves cost 4× more, so items stack down the outer side. "Add" tries the item rotated if the upright version doesn't fit.
+- `settle(p)` runs after a patch is dragged, nudged, typed into place or rotated: if it ended on a no-go zone or off the panel (`zoneProblem`), it moves to the nearest free spot and a toast says why (`settleNote`). Overlapping another patch is allowed (it's only flagged), since people rearrange in steps.
+- `findSpot(section, w, h, skipUid, local, near)` tries a 0.5 cm grid nearest-first from a per-section anchor (or from `near`) and returns the first free spot. `local` is the item's outline (`localOutline(def, rot)`). On sleeves, sideways moves cost 4× more, so items stack down the outer side. "Add" tries the item rotated if the upright version doesn't fit.
 
 Circles, shields, scrolls and letters still collide by their bounding box, which is conservative.
 

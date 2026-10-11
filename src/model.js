@@ -130,12 +130,38 @@ function torsoMeridian(d, T, panel, u, half){
   return panel === 'front' ? pts.map(p => openFront(d, p, u, half)) : pts;
 }
 
-// Rows by true distance up from the bottom edge. Returns the grid column (top row first)
-// and how far down from the section's top edge the real piece starts (0 if it reaches it).
-function rowsUp(merid, H, NV){
-  const cum = lengths(merid), Lm = cum[cum.length - 1], k = Math.max(1, Lm/H), col = [];
-  for (let j = 0; j <= NV; j++) col.push(along(merid, cum, Math.min(Lm, H*(1 - j/NV)*k)));
-  return { col, top:Math.max(0, H - Lm) };
+// Where texture rows go on a torso panel. Up to the armpit, a row is a level ring: every
+// column is sampled at the same height, found by distance up a reference column (the
+// middle of the back, or the middle of each front half). Above the armpit, each column
+// shares out the remaining rows over its own length, so all columns reach the top edge
+// together; a column too short to reach it (the neckline) stops early, leaving a cut-away.
+// Returns the grid column (top row first) and how far down the real piece starts.
+function torsoRefs(d, T){
+  const out = {};
+  for (const [panel, u] of [['front', 0.25], ['back', 0.5]]){
+    const low = T.low.map(r => { const q = tableAt(r[panel], u); return [q[0], r.y, q[2]]; }), cum = lengths(low);
+    out[panel] = { cum, dA:cum[cum.length - 1] };
+  }
+  return out;
+}
+function torsoColumn(d, T, R, panel, u, half, NV){
+  const merid = torsoMeridian(d, T, panel, u, half), K = T.low.length - 1, H = d.L;
+  const low = merid.slice(0, K + 1), up = merid.slice(K), ref = R[panel];
+  const upCum = lengths(up), Lu = upCum[upCum.length - 1], Lt = Math.max(1, H - ref.dA);
+  // Height index on the reference column for a distance up from the hem.
+  const lowAt = dd => {
+    let lo = 0, hi = K;
+    while (hi - lo > 1){ const mid = (lo + hi) >> 1; if (ref.cum[mid] < dd) lo = mid; else hi = mid; }
+    const f = lo + (dd - ref.cum[lo])/((ref.cum[hi] - ref.cum[lo]) || 1), i = Math.min(K - 1, Math.floor(f));
+    return lerp(low[i], low[i + 1], Math.min(1, f - i));
+  };
+  const col = [];
+  for (let j = 0; j <= NV; j++){
+    const dd = H*(1 - j/NV);
+    if (dd <= ref.dA) col.push(lowAt(dd));
+    else { const du = dd - ref.dA; col.push(along(up, upCum, Lu >= Lt ? du*Lu/Lt : Math.min(du, Lu))); }
+  }
+  return { col, top:Math.max(0, Lt - Lu) };
 }
 
 /* ----- Sleeves ----- */
@@ -180,9 +206,9 @@ function makeGrid(section, cols, tops, u0, u1){
   return { section, NU, NV, u0, u1, pos, tops };
 }
 function torsoPanel(d, T, panel, u0, u1, half, NU, NV){
-  const cols = [], tops = [];
+  const cols = [], tops = [], R = torsoRefs(d, T);
   for (let i = 0; i <= NU; i++){
-    const u = u0 + (u1 - u0)*i/NU, r = rowsUp(torsoMeridian(d, T, panel, u, half), d.L, NV);
+    const u = u0 + (u1 - u0)*i/NU, r = torsoColumn(d, T, R, panel, u, half, NV);
     cols.push(r.col); tops.push(r.top);
   }
   return makeGrid(panel, cols, tops, u0, u1);
@@ -217,11 +243,23 @@ function sleevePanel(d, T, section, NU, NV){
   // The cap adds length on the outer side: shorten the arm to make up for it.
   const outer = meridian(0.5, 1), cum = lengths(outer.merid), extra = cum[cum.length - 1] - H;
   const s = Math.max(0.8, 1 - extra/(H - outer.yc));
+  // Rows are rings square to the arm (like a bar sewn straight across it), placed by
+  // distance up the outer side from the cuff. Above where a column joins its cap, it
+  // carries on up the cap by its own length; columns that run out are cut away.
+  const yvs = [], dOut = [0];
+  for (let yv = H; yv >= 0; yv -= 0.25) yvs.push(yv);
+  for (let k = 1; k < yvs.length; k++) dOut.push(dOut[k - 1] + len(sub(tubePoint(d, ax, side, 0.5, yvs[k], s), tubePoint(d, ax, side, 0.5, yvs[k - 1], s))));
+  const yvAt = dd => { let k = 1; while (k < dOut.length - 1 && dOut[k] < dd) k++; const t = (dd - dOut[k - 1])/((dOut[k] - dOut[k - 1]) || 1); return yvs[k - 1] + (yvs[k] - yvs[k - 1])*Math.min(1, t); };
+  const dAt = yv => { let k = 1; while (k < yvs.length - 1 && yvs[k] > yv) k++; const t = (yvs[k - 1] - yv)/((yvs[k - 1] - yvs[k]) || 1); return dOut[k - 1] + (dOut[k] - dOut[k - 1])*Math.min(1, t); };
   const cols = [], tops = [];
   for (let i = 0; i <= NU; i++){
-    // rowsUp wants bottom first; the sleeve's bottom edge is the cuff.
-    const r = rowsUp(meridian(i/NU, s).merid.reverse(), H, NV);
-    cols.push(r.col); tops.push(r.top);
+    const u = i/NU, { merid, yc } = meridian(u, s), cap = merid.slice(0, 31).reverse(), capCum = lengths(cap), Lc = capCum[capCum.length - 1];
+    const dJoin = dAt(yc), col = [];
+    for (let j = 0; j <= NV; j++){
+      const dd = H*(1 - j/NV), yv = yvAt(dd);
+      col.push(yv >= yc ? tubePoint(d, ax, side, u, yv, s) : along(cap, capCum, Math.min(Lc, dd - dJoin)));
+    }
+    cols.push(col); tops.push(Math.max(0, H - dJoin - Lc));
   }
   g_s.set(section, s);
   return makeGrid(section, cols, tops, 0, 1);
@@ -245,6 +283,9 @@ function gridNormals(g, inside){
   }));
 }
 function foldPanel(g, m, insideFn){
+  // The inside points only orient the normals; work them out once, as applyFolds reruns.
+  const ins = g.pos.map((row, j) => row.map((p, i) => insideFn(j, i)));
+  insideFn = (j, i) => ins[j][i];
   const { W, H } = sectionDims(g.section, m), folds = foldsFor(g.section, m), n0 = gridNormals(g, insideFn);
   g.fold = g.pos.map((row, j) => row.map((p, i) => {
     const x = (g.u0 + (g.u1 - g.u0)*i/g.NU)*W, y = H*j/g.NV, top = g.tops[i];
@@ -252,8 +293,14 @@ function foldPanel(g, m, insideFn){
     const seams = smooth(top, top + 3, y)*smooth(0, 2.5, Math.min(x, W - x));
     return foldHeight(folds, x, y)*seams;
   }));
-  g.pos = g.pos.map((row, j) => row.map((p, i) => add(p, mul(n0[j][i], g.fold[j][i]))));
-  g.normal = gridNormals(g, insideFn);
+  g.base = g.pos; g.n0 = n0; g.inside = insideFn;
+  applyFolds(g);
+}
+// Push the panel out along its folds. `damp(j, i)` (0..1) scales them down, e.g. under a
+// stiff felt patch, which keeps the leather beneath it flat.
+export function applyFolds(g, damp = null){
+  g.pos = g.base.map((row, j) => row.map((p, i) => add(p, mul(g.n0[j][i], g.fold[j][i]*(damp ? damp(j, i) : 1)))));
+  g.normal = gridNormals(g, g.inside);
 }
 // Ambient occlusion, per point, 0.5..1: the body side under the arm, the inside of the
 // sleeve against the body, fold valleys, and just under the waistband's blousing.
@@ -384,7 +431,7 @@ export function buildJacket(m){
   for (const g of sleeves){
     const side = g.section === 'leftSleeve' ? 1 : -1, ax = sleeveAxis(d, side);
     const s = g_s.get(g.section) || 1;
-    foldPanel(g, m, (j) => ax.at(Math.max(0, (d.sleeveL*j/g.NV - 3)*s)).p);
+    foldPanel(g, m, (j, i) => { const p = g.base ? g.base[j][i] : g.pos[j][i]; let best = ax.J, bd = Infinity; for (let t = 0; t <= d.sleeveL; t += 2){ const q = ax.at(t*s).p, dd = Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); if (dd < bd){ bd = dd; best = q; } } return best; });
   }
   for (const g of [F.left, F.right, B, ...sleeves]) shade(g, d);
   return { dims:d, panels:[F.left, F.right, B, ...sleeves], collar:collar(d, F, B), lapels:lapels(d, F, m) };
@@ -403,7 +450,7 @@ export function cutaways(m){
 function computeCutaways(m){
   const d = bodyDims(m), T = torsoTables(d), out = {};
   const edge = (W, merid) => { const xs = [], N = 32; for (let i = 0; i <= N; i++){ const u = i/N; xs.push([u*W, merid(u)]); } return xs; };
-  const torsoTop = panel => u => { const r = rowsUp(torsoMeridian(d, T, panel, u, u <= 0.5 ? -1 : 1), d.L, 2); return r.top; };
+  const R = torsoRefs(d, T), torsoTop = panel => u => torsoColumn(d, T, R, panel, u, u <= 0.5 ? -1 : 1, 2).top;
   out.front = edge(d.W, torsoTop('front'));
   out.back = edge(d.W, torsoTop('back'));
   for (const s of ['leftSleeve', 'rightSleeve']){ const g = sleevePanel(d, T, s, 32, 2); out[s] = g.tops.map((t, i) => [i/32*d.sleeveW, t]); }

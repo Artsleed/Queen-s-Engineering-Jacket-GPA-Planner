@@ -20,7 +20,7 @@ function cutawayZones(profile, label, reason){
   const out = [];
   let run = null;
   profile.forEach(([x, t], i) => {
-    if (t > 0.3){ if (!run) run = [[i ? profile[i - 1][0] : x, 0]]; run.push([x, t]); } // under 3 mm doesn't matter
+    if (t > 0.8){ if (!run) run = [[i ? profile[i - 1][0] : x, 0]]; run.push([x, t]); } // under 8 mm doesn't matter
     else if (run){ run.push([x, 0]); out.push(run); run = null; }
   });
   if (run){ run.push([profile[profile.length - 1][0], 0]); out.push(run); }

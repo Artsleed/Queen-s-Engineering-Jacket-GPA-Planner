@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { setState, normalize, rebuildCatalog, sectionSize, noGoZones, state, getDef } from '../src/state.js';
 import { localOutline } from '../src/shapes.js';
-import { boxesClash, conflicts, findSpot } from '../src/fit.js';
+import { boxesClash, conflicts, findSpot, settle } from '../src/fit.js';
+import { DEFAULT_MEAS } from '../src/config.js';
+const DEFAULT_MEAS_SLEEVE = DEFAULT_MEAS.sleeve;
 
 // Loads a plan the same way the app does when it opens a saved one.
 // Every plan includes a plain 12 × 3 cm box item, so these tests don't depend on bar shapes.
@@ -114,5 +116,22 @@ describe('findSpot speed', () => {
     }
     expect(conflicts('leftSleeve').size).toBe(0);
     expect(performance.now() - t).toBeLessThan(2000); // 12 Adds in total
+  });
+});
+
+describe('settle', () => {
+  it('moves a bar dropped on the cuff to the nearest spot it can be sewn', () => {
+    load({ placed:[] });
+    const p = { uid:'a', item:'bar-blank', section:'leftSleeve', x:13, y:DEFAULT_MEAS_SLEEVE - 5, rot:0, text:null }; // on the cuff, inside the panel
+    state.placed.push(p);
+    const why = settle(p);
+    expect(why.label).toBe('Cuff');
+    expect(conflicts('leftSleeve').size).toBe(0);
+    expect(p.y + 4.1).toBeLessThanOrEqual(DEFAULT_MEAS_SLEEVE - 6 + 1e-6); // above the 6 cm cuff
+  });
+  it('leaves a patch alone when it only overlaps another patch', () => {
+    load({ placed:[bar('a', 2, 5), bar('b', 4, 6)] });
+    expect(settle(state.placed[1])).toBeNull();
+    expect(state.placed[1].x).toBe(4);
   });
 });

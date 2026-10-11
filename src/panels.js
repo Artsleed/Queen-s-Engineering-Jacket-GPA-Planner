@@ -2,7 +2,7 @@
 import { SECTIONS, SECTION_LABEL, DEFAULT_MEAS, DEFAULT_JACKET, JACKET_COLOURS } from './config.js';
 import { $, clamp, r1, newId } from './util.js';
 import { state, current, sel, setCurrent, setSel, getDef, sectionSize, noGoZones, dims } from './state.js';
-import { conflicts, findSpot } from './fit.js';
+import { conflicts, findSpot, settle, settleNote } from './fit.js';
 import { localOutline, coverage } from './shapes.js';
 import { layoutEditor, drawEditor } from './editor2d.js';
 import { refreshAddLabel } from './catalog-ui.js';
@@ -98,7 +98,7 @@ export function renderInspector(){
   const setPos = () => {
     pushHistory(); const { w, h } = sectionSize(p.section);
     p.x = r1(clamp(+$('#iX').value || 0, 0, Math.max(0, w - dm.w))); p.y = r1(clamp(+$('#iY').value || 0, 0, Math.max(0, h - dm.h)));
-    commit();
+    const why = settle(p); commit(); if (why) toast(settleNote(p, why));
   };
   $('#iX').addEventListener('change', setPos); $('#iY').addEventListener('change', setPos);
   const ss = $('#iSec'); for (const s of SECTIONS) ss.append(new Option(SECTION_LABEL[s], s)); ss.value = p.section;
@@ -123,7 +123,7 @@ export function rotateSel(){
   p.rot = p.rot === 90 ? 0 : 90;
   const after = dims(p), { w, h } = sectionSize(p.section);
   p.x = r1(clamp(cx - after.w/2, 0, Math.max(0, w - after.w))); p.y = r1(clamp(cy - after.h/2, 0, Math.max(0, h - after.h)));
-  commit();
+  const why = settle(p); commit(); if (why) toast(settleNote(p, why));
 }
 export function removeSel(){
   const p = state.placed.find(q => q.uid === sel); if (!p) return;

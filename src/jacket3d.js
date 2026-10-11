@@ -15,7 +15,7 @@ import { $, clamp } from './util.js';
 import { state, sectionSize, noGoZones, getDef, dims, textOf } from './state.js';
 import { drawPanel, drawItem } from './draw.js';
 import { heightLayer, leatherLayer, grainCanvas } from './leather.js';
-import { buildJacket } from './model.js';
+import { buildJacket, applyFolds } from './model.js';
 import pkg from '../package.json';
 import { hitTest } from './editor2d.js';
 import { setSection, select } from './panels.js';
@@ -168,8 +168,9 @@ export function build3D(){
     model.add(m); return m;
   };
   const mats = Object.fromEntries(SECTIONS.map(s => [s, panelMat(s)]));
+  V.panels = [];
   for (const g of J.panels){
-    add(gridGeometry(g), mats[g.section], g.section);
+    V.panels.push({ g, mesh:add(gridGeometry(g), mats[g.section], g.section) });
     add(gridGeometry(g, t), liningMat);
     const last = g.NV, cols = g.NU;
     // Free edges get thickness: hems and cuffs (the bottom row), and the two front edges.
@@ -182,6 +183,7 @@ export function build3D(){
   }
   add(rowsGeometry(J.collar), plainMat);
   for (const l of J.lapels) add(rowsGeometry(l), plainMat);
+  for (const s of SECTIONS) flattenUnderPatches(s);
   // Centre the jacket and frame it.
   const box = new THREE.Box3().setFromObject(model), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
   model.position.sub(c);
@@ -217,7 +219,10 @@ export function renderTexture(s){
   b.drawImage(heightLayer(s, state.meas, wear, k, zones.filter(z => z.kind === 'band')), 0, 0);
   b.fillStyle = 'rgba(255,255,255,.22)';
   for (const z of zones) if (z.outline && (z.kind === 'lapel' || z.kind === 'collar' || z.kind === 'pocket')) polyFill(b, z.outline, k);
-  b.save(); b.globalAlpha = 0.45; b.drawImage(T.mask, 0, 0); b.restore();
+  const tgb = T.tint.getContext('2d'); tgb.clearRect(0, 0, cw, ch);
+  tgb.globalCompositeOperation = 'source-over'; tgb.drawImage(T.mask, 0, 0);
+  tgb.globalCompositeOperation = 'source-in'; tgb.fillStyle = 'rgb(176,176,176)'; tgb.fillRect(0, 0, cw, ch);
+  b.drawImage(T.tint, 0, 0);
   // Surface: glossy leather (rougher where worn), matte felt.
   const sf = T.surf.ctx, rough = LOOK.roughness + LOOK.wornRoughness*wear;
   sf.fillStyle = `rgb(255,${Math.round(rough*255)},0)`; sf.fillRect(0, 0, cw, ch);
@@ -227,7 +232,33 @@ export function renderTexture(s){
   tg.globalCompositeOperation = 'source-in'; tg.fillStyle = 'rgb(0,235,0)'; tg.fillRect(0, 0, cw, ch);
   sf.drawImage(T.tint, 0, 0);
   T.t.needsUpdate = T.bump.t.needsUpdate = T.surf.t.needsUpdate = true; V.dirty = true;
+  flattenUnderPatches(s);
 }
+// Felt patches are stiff: the leather under them doesn't fold. Flatten the folds under each
+// patch (easing back in over a soft edge) whenever a section's patches change.
+function flattenUnderPatches(s){
+  if (!V.panels) return;
+  const { w:W, h:H } = sectionSize(s), soft = 1.5;
+  const items = state.placed.filter(p => p.section === s).map(p => ({ ...dims(p), x:p.x, y:p.y })), key = JSON.stringify(items);
+  for (const P of V.panels){
+    const g = P.g;
+    if (g.section !== s || P.key === key) continue;
+    P.key = key;
+    applyFolds(g, (j, i) => {
+      const x = (g.u0 + (g.u1 - g.u0)*i/g.NU)*W, y = H*j/g.NV;
+      let cover = 0;
+      for (const b of items){
+        const d = Math.hypot(Math.max(b.x - x, 0, x - b.x - b.w), Math.max(b.y - y, 0, y - b.y - b.h));
+        if (d < soft) cover = Math.max(cover, 1 - d/soft);
+      }
+      return 1 - 0.92*cover;
+    });
+    const pos = P.mesh.geometry.attributes.position, nor = P.mesh.geometry.attributes.normal, cols = g.NU + 1;
+    for (let j = 0; j <= g.NV; j++) for (let i = 0; i <= g.NU; i++){ const k = j*cols + i; pos.setXYZ(k, ...g.pos[j][i]); nor.setXYZ(k, ...g.normal[j][i]); }
+    pos.needsUpdate = nor.needsUpdate = true; P.mesh.geometry.computeBoundingSphere();
+  }
+}
+
 // The collar, lapels and edges use the back's leather, so they wear the same way.
 export function refreshSwatch(){
   if (!V.ok) return;
