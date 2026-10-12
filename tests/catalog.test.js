@@ -58,3 +58,11 @@ describe('rebuildCatalog', () => {
     expect(getDef('wiki-does-not-exist').missing).toBe(true);
   });
 });
+
+describe('dyeing', () => {
+  it('dyes the chenille on a purple jacket, but not on a yellow one', async () => {
+    const { dyedChenille, JACKET_COLOURS } = await import('../src/config.js');
+    expect(dyedChenille(JACKET_COLOURS.find(c => c.id === 'undyed').color)).toBeNull();
+    expect(dyedChenille(JACKET_COLOURS.find(c => c.id === 'dyed').color).backing).toBeTruthy();
+  });
+});

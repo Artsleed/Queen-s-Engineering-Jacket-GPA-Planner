@@ -49,8 +49,8 @@ function backCollarZone(m){
   const d = bodyDims(m), W = d.W, ns = neckSides(d), xa = (1 - ns.back)*W, xb = ns.back*W, { fall } = collarSize(d), sp = fall*W/ns.topBack;
   const pts = [];
   for (let k = 0; k <= 24; k++){
-    const r = k/24, nx = xa + (xb - xa)*r, edge = 1 - smoothstep(0, 0.2, Math.min(r, 1 - r));
-    pts.push([nx + (r < 0.5 ? 1 : -1)*edge*sp, fall*(1 - edge)]);
+    const r = k/24, nx = xa + (xb - xa)*r, edge = 1 - smoothstep(0, 0.25, Math.min(r, 1 - r));
+    pts.push([nx + (r < 0.5 ? 1 : -1)*edge*sp, fall*(1 - edge*edge)]);
   }
   return zone(pts, { label:'Collar', kind:'collar' });
 }
@@ -87,8 +87,11 @@ export function jacketZones(section, m){
     z.push(...cutawayZones(cut, 'Sleeve cap', 'Off the jacket: the sleeve curves away there to fit the armhole'));
   // Snaps sit near the front edges on the waistband, and near the underarm seam on the cuffs.
   if ((section === 'front' || section === 'back') && m.waistband > 0)
-    z.push({ x:0, y:H - m.waistband, w:W, h:m.waistband, label:'Waistband', kind:'band',
+    z.push({ x:0, y:H - m.waistband, w:W, h:m.waistband, label:'Waistband', kind:'band', sewable:true,
       snaps: section === 'front' ? [-1, 1].flatMap(sd => [0.3, 0.72].map(f => [W/2 + sd*FRONT.snapFromEdge, f])) : [] });
+  // Flags and bars do go on the waistband (Nathaniel's photos), except over the snaps by the zipper.
+  if (section === 'front' && m.waistband > 0) for (const sd of [-1, 1])
+    z.push({ x:W/2 + (sd < 0 ? -FRONT.snapFromEdge - 2.5 : 0), y:H - m.waistband, w:FRONT.snapFromEdge + 2.5, h:m.waistband, label:'Waistband snaps', kind:'vent' });
   // The front edges carry the (open) zipper all the way to the hem. Drawn after the waistband.
   if (section === 'front' && m.zipper > 0) z.push({ x:W/2 - m.zipper/2, y:0, w:m.zipper, h:H, label:'Zipper', kind:'opening' });
   if ((section === 'leftSleeve' || section === 'rightSleeve') && m.cuff > 0){

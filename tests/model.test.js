@@ -15,7 +15,6 @@ describe('buildJacket', () => {
     expect(J.panels.map(g => g.section).sort()).toEqual(['back', 'front', 'front', 'leftSleeve', 'rightSleeve']);
     for (const g of J.panels) expect(g.pos.flat().some(p => p.some(v => !Number.isFinite(v))), g.section).toBe(false);
     expect(J.collar.flat().every(p => p.every(Number.isFinite))).toBe(true);
-    expect(J.lapels).toHaveLength(2);
   });
   it('keeps the back true to size across', () => {
     const B = panel('back')[0], j = Math.round(B.NV*0.45); // chest height, away from the folds

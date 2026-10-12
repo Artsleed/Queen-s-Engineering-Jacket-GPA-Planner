@@ -7,6 +7,7 @@ import { conflicts } from './fit.js';
 import { leatherLayer, fillGrain, grainCanvas } from './leather.js';
 import { seeded } from './surface.js';
 import { arcGeom, bandOf } from './shapes.js';
+import { dyedChenille } from './config.js';
 
 // Photos load asynchronously; whoever owns redrawing registers a callback here.
 let onImageLoad = () => {};
@@ -26,6 +27,26 @@ export function roundRectPath(ctx, x, y, w, h, r){
   ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
   ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y); ctx.closePath();
 }
+/* ----- Felt and embroidery ----- */
+// Felt or twill texture over a filled patch (the caller has clipped to its shape). k: px per cm.
+function felt(ctx, x, y, w, h, k){
+  const pat = ctx.createPattern(grainCanvas(), 'repeat');
+  if (pat.setTransform && typeof DOMMatrix !== 'undefined') pat.setTransform(new DOMMatrix().scale(k/40));
+  ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = 0.35; ctx.fillStyle = pat; ctx.fillRect(x, y, w, h); ctx.restore();
+}
+// Satin stitching: fine diagonal threads over a border (stroke `path` at `width`).
+let hatchTile = null;
+function satin(ctx, path, width, k){
+  if (!hatchTile){
+    hatchTile = document.createElement('canvas'); hatchTile.width = hatchTile.height = 8;
+    const g = hatchTile.getContext('2d'); g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.2;
+    g.beginPath(); for (const o of [-8, 0, 8]){ g.moveTo(o, 8); g.lineTo(o + 8, 0); } g.stroke();
+    g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 0.8; g.beginPath(); for (const o of [-6, 2, 10]){ g.moveTo(o, 8); g.lineTo(o + 8, 0); } g.stroke();
+  }
+  const pat = ctx.createPattern(hatchTile, 'repeat');
+  if (pat.setTransform && typeof DOMMatrix !== 'undefined') pat.setTransform(new DOMMatrix().scale(Math.max(0.3, k/40)));
+  ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.strokeStyle = pat; ctx.lineWidth = width; path(); ctx.stroke(); ctx.restore();
+}
 function shapePath(ctx, shape, x, y, w, h){
   ctx.beginPath();
   const m = Math.min(w, h);
@@ -39,44 +60,56 @@ function shapePath(ctx, shape, x, y, w, h){
   else roundRectPath(ctx, x, y, w, h, m*0.12);
 }
 
-/* ----- Scroll (mottos): an arched ribbon with forked tails folded behind each end ----- */
+/* ----- Scroll (mottos): an arched ribbon whose ends curl under ----- */
+// From Nathaniel's photos: a blue band, yellow lettering and a yellow line just inside the
+// edge, all on red felt that shows as a border and wraps the small curls at each end.
 function scrollGeom(x, y, w, h){
-  const t = h*0.6, sag = h*0.22; // band thickness; how far the band's ends sit below its middle
-  return { x, y, w, h, t, sag, x0:x + w*0.1, x1:x + w*0.9 };
+  const t = h*0.58, sag = h*0.26, rc = t*0.3; // band thickness; how far its ends drop; curl radius
+  return { x, y, w, h, t, sag, rc, x0:x + w*0.035 + rc*0.6, x1:x + w*0.965 - rc*0.6 };
 }
-function bandPath(ctx, S){
-  const mid = (S.x0 + S.x1)/2, c = S.y - S.sag; // quadratic control point, so the middle lands at S.y
-  ctx.moveTo(S.x0, S.y + S.sag); ctx.quadraticCurveTo(mid, c, S.x1, S.y + S.sag);
-  ctx.lineTo(S.x1, S.y + S.sag + S.t); ctx.quadraticCurveTo(mid, c + S.t, S.x0, S.y + S.sag + S.t); ctx.closePath();
+// The band, shrunk by `ins` all round.
+function bandPath(ctx, S, ins = 0){
+  const x0 = S.x0 + ins, x1 = S.x1 - ins, mid = (x0 + x1)/2, c = S.y - S.sag; // quadratic control point, so the middle lands at S.y
+  ctx.moveTo(x0, S.y + S.sag + ins); ctx.quadraticCurveTo(mid, c + ins, x1, S.y + S.sag + ins);
+  ctx.lineTo(x1, S.y + S.sag + S.t - ins); ctx.quadraticCurveTo(mid, c + S.t - ins, x0, S.y + S.sag + S.t - ins); ctx.closePath();
 }
-function tailPath(ctx, S, side){
-  const top = S.y + S.h - S.t, bot = S.y + S.h, notch = S.w*0.06, len = S.w*0.17;
-  const outer = side < 0 ? S.x : S.x + S.w, inner = outer - side*len;
-  ctx.moveTo(inner, top); ctx.lineTo(outer, top); ctx.lineTo(outer - side*notch, (top + bot)/2); ctx.lineTo(outer, bot); ctx.lineTo(inner, bot); ctx.closePath();
-}
+// Centre of the curl at one end (side -1 left, 1 right), tucked under the band's lower corner.
+const curlAt = (S, side) => [side < 0 ? S.x0 + S.rc*0.15 : S.x1 - S.rc*0.15, S.y + S.sag + S.t - S.rc*0.15];
+function tailPath(ctx, S, side){ const [cx, cy] = curlAt(S, side); ctx.moveTo(cx + S.rc, cy); ctx.arc(cx, cy, S.rc, 0, Math.PI*2); }
 function drawScroll(ctx, d, text, x, y, w, h, o){
-  const S = scrollGeom(x, y, w, h), lw = Math.max(1, S.t*0.1), edge = d.border || d.fg;
+  const S = scrollGeom(x, y, w, h), fw = S.t*0.15, edge = d.border || '#C8282E', silhouette = () => { ctx.beginPath(); bandPath(ctx, S); tailPath(ctx, S, -1); tailPath(ctx, S, 1); };
   ctx.save();
   if (!o.mask){ ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = Math.max(1, h*0.12); ctx.shadowOffsetY = Math.max(0.5, h*0.04); }
-  for (const side of [-1, 1]){ // the tails sit behind the band, so they're darker
-    ctx.beginPath(); tailPath(ctx, S, side); ctx.fillStyle = o.mask ? '#fff' : shade(d.bg, -0.22); ctx.fill();
-    if (!o.mask){ ctx.save(); ctx.shadowColor = 'transparent'; ctx.lineWidth = lw; ctx.strokeStyle = shade(edge, -0.15); ctx.stroke(); ctx.restore(); }
-  }
-  ctx.beginPath(); bandPath(ctx, S); ctx.fillStyle = o.mask ? '#fff' : d.bg; ctx.fill();
+  silhouette(); ctx.fillStyle = o.mask ? '#fff' : edge; ctx.fill();
   ctx.shadowColor = 'transparent';
   if (o.mask){ ctx.restore(); return; }
-  const im = getImg(d.img);
+  ctx.save(); silhouette(); ctx.clip(); felt(ctx, x, y, w, h, w/d.w); ctx.restore();
+  const im = getImg(d.img), inner = () => { ctx.beginPath(); bandPath(ctx, S, fw); };
+  // The curls: the band's colour rolled up, with the yellow line spiralling in.
+  for (const side of [-1, 1]){
+    const [cx, cy] = curlAt(S, side);
+    ctx.beginPath(); ctx.arc(cx, cy, S.rc - fw*0.8, 0, Math.PI*2); ctx.fillStyle = shade(d.bg, -0.18); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, (S.rc - fw)*0.55, side < 0 ? Math.PI*0.3 : Math.PI*-0.3, side < 0 ? Math.PI*1.7 : Math.PI*1.3, side > 0);
+    ctx.lineWidth = Math.max(0.8, S.t*0.045); ctx.strokeStyle = d.fg || '#F2C230'; ctx.stroke();
+  }
+  inner(); ctx.fillStyle = d.bg; ctx.fill();
   if (im){
-    ctx.save(); ctx.beginPath(); bandPath(ctx, S); ctx.clip();
+    ctx.save(); inner(); ctx.clip();
     const k = Math.max(w/im.naturalWidth, h/im.naturalHeight);
     ctx.drawImage(im, x + (w - im.naturalWidth*k)/2, y + (h - im.naturalHeight*k)/2, im.naturalWidth*k, im.naturalHeight*k); ctx.restore();
+  } else {
+    ctx.save(); inner(); ctx.clip(); felt(ctx, x, y, w, h, w/d.w); ctx.restore();
+    // The yellow line just inside the fw border, satin-stitched.
+    ctx.beginPath(); bandPath(ctx, S, fw + S.t*0.07); ctx.lineWidth = Math.max(0.8, S.t*0.045); ctx.strokeStyle = d.fg || '#F2C230'; ctx.stroke();
+    satin(ctx, inner, fw*0.5, w/d.w);
   }
-  ctx.beginPath(); bandPath(ctx, S); ctx.lineWidth = lw; ctx.strokeStyle = edge; ctx.stroke();
   if (text){
-    ctx.fillStyle = d.fg || '#000';
-    const arch = archOf((S.x1 - S.x0)*0.84, S.sag*0.84);
-    arcText(ctx, text, { cx:x + w/2, cy:y + S.t/2, ...arch, height:S.t*0.42, font:'Graduate, Archivo, Impact, sans-serif', mode:'shrink',
+    ctx.save(); ctx.fillStyle = d.fg || '#000';
+    if (!im){ ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = Math.max(0.5, S.t*0.04); ctx.shadowOffsetY = Math.max(0.3, S.t*0.02); }
+    const arch = archOf((S.x1 - S.x0)*0.86, S.sag*0.86);
+    arcText(ctx, text, { cx:x + w/2, cy:y + S.t/2, ...arch, height:S.t*0.36, font:'Archivo, Arial, sans-serif', weight:600, mode:'shrink',
       stroke: im ? { color:'rgba(0,0,0,.65)', width:S.t*0.08 } : null });
+    ctx.restore();
   }
   ctx.restore();
 }
@@ -143,7 +176,9 @@ function drawArcBar(ctx, d, text, x, y, w, h, o){
   const im = getImg(d.img);
   if (im){ const k = Math.max(w/im.naturalWidth, h/im.naturalHeight); ctx.drawImage(im, x + (w - im.naturalWidth*k)/2, y + (h - im.naturalHeight*k)/2, im.naturalWidth*k, im.naturalHeight*k); }
   else {
+    felt(ctx, x, y, w, h, w/d.w);
     band(); ctx.lineWidth = lw*2; ctx.strokeStyle = d.border || d.fg; ctx.stroke(); // inner half of a double-width stroke = border inside the edge
+    satin(ctx, band, lw*2, w/d.w);
     if (g.t > 14){ // stitching just inside the border
       ctx.beginPath(); arcPath(ctx, g, x, y, h, lw*1.6, lw*1.6);
       ctx.setLineDash([g.t*0.07, g.t*0.06]); ctx.lineWidth = Math.max(0.6, g.t*0.025); ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.stroke(); ctx.setLineDash([]);
@@ -261,7 +296,7 @@ function buildChenille(W, H, pad, glyphs, look){
   ag.save(); ag.shadowColor = 'rgba(0,0,0,.45)'; ag.shadowBlur = Math.max(2, look.backingW*1.3); ag.shadowOffsetY = Math.max(1, look.backingW*0.45);
   ag.drawImage(tinted(bc, look.backing), 0, 0); ag.restore();
   // Felt texture on the backing.
-  ag.save(); ag.globalCompositeOperation = 'source-atop'; ag.globalAlpha = 0.18; ag.fillStyle = ag.createPattern(grainCanvasCached(), 'repeat'); ag.fillRect(0, 0, W, H); ag.restore();
+  ag.save(); ag.globalCompositeOperation = 'source-atop'; ag.globalAlpha = 0.12; { const pat = ag.createPattern(grainCanvasCached(), 'repeat'); if (pat.setTransform && typeof DOMMatrix !== 'undefined') pat.setTransform(new DOMMatrix().scale(0.3)); ag.fillStyle = pat; } ag.fillRect(0, 0, W, H); ag.restore();
   const [gm, gg] = layer(true); gg.fillStyle = '#fff'; glyphs(gg, 'fill');
   const inner = innerBits(gm, look.lineW*1.5 + 1.5);
   // A stitched line round the chenille (the year digits have one).
@@ -341,6 +376,9 @@ function drawFlag(ctx, f, x, y, w, h){
 // o.mask draws the item's footprint in plain white (for the 3D bump and roughness maps).
 export function drawItem(ctx, d, text, x, y, w, h, o = {}){
   if (d.shape === 'scroll') return drawScroll(ctx, d, text, x, y, w, h, o);
+  // Chenille is dyed along with the jacket.
+  const dye = (d.shape === 'qas' || d.shape === 'chenille') && dyedChenille(state.jacket.color);
+  if (dye) d = { ...d, ...dye };
   if (d.shape === 'qas') return drawQAS(ctx, d, x, y, w, h, o);
   if (d.shape === 'arc') return drawArcBar(ctx, d, text, x, y, w, h, o);
   if (d.shape === 'chenille') return drawChenilleText(ctx, d, text, x, y, w, h, o);
@@ -355,6 +393,7 @@ export function drawItem(ctx, d, text, x, y, w, h, o = {}){
     ctx.save(); shapePath(ctx, d.shape, x, y, w, h); ctx.clip();
     if (d.flag && d.flag.type) drawFlag(ctx, d.flag, x, y, w, h);
     const im = getImg(d.img);
+    if (!im && !o.mask && d.w) felt(ctx, x, y, w, h, w/d.w);
     if (im){ const s = Math.max(w/im.naturalWidth, h/im.naturalHeight), iw = im.naturalWidth*s, ih = im.naturalHeight*s; ctx.drawImage(im, x + (w-iw)/2, y + (h-ih)/2, iw, ih); }
     ctx.restore();
     if (!im){
@@ -402,7 +441,9 @@ function drawSnap(ctx, x, y, r){
 
 /* ----- Panels ----- */
 const polyPath = (ctx, pts, k) => { pts.forEach(([x, y], i) => i ? ctx.lineTo(x*k, y*k) : ctx.moveTo(x*k, y*k)); ctx.closePath(); };
-const stitchStyle = (ctx, jc, k) => { ctx.strokeStyle = shade(jc, -0.42); ctx.globalAlpha = 0.75; ctx.lineWidth = Math.max(0.6, k*0.07); ctx.setLineDash([k*0.35, k*0.25]); ctx.lineCap = 'butt'; };
+// Topstitching is tan thread (Nathaniel's close-ups), whatever the leather colour.
+const THREAD = '#A98E6E';
+const stitchStyle = (ctx, jc, k) => { ctx.strokeStyle = THREAD; ctx.globalAlpha = 0.85; ctx.lineWidth = Math.max(0.6, k*0.07); ctx.setLineDash([k*0.35, k*0.25]); ctx.lineCap = 'butt'; };
 // Stitching just inside a polygon's edges. `skip(i)` leaves out edge i (e.g. a fold line).
 function stitchPolygon(ctx, pts, k, jc, inset = 0.5, skip = () => false){
   let area = 0;
@@ -543,6 +584,8 @@ function drawZone(ctx, s, z, k, jc){
   } else if (z.kind === 'lapel'){
     // Edge 1 runs down the front edge (the fold), so it gets no stitching.
     drawFlap(ctx, s, z.outline, k, jc, i => i === 1);
+    // A snap at the top of each front edge, just under the collar.
+    drawSnap(ctx, (z.outline[1][0] + z.side*2.3)*k, z.outline[4][1]*0.8*k, k*0.55);
   } else if (z.kind === 'collar'){
     drawFlap(ctx, s, z.outline, k, jc, () => false);
   } else if (z.kind === 'pocket'){

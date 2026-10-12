@@ -14,8 +14,11 @@ import { SECTIONS, TEX_PX } from './config.js';
 import { $, clamp } from './util.js';
 import { state, sectionSize, noGoZones, getDef, dims, textOf } from './state.js';
 import { drawPanel, drawItem } from './draw.js';
-import { heightLayer, leatherLayer, grainCanvas } from './leather.js';
-import { buildJacket, applyFolds, VENT } from './model.js';
+import { heightLayer, leatherLayer, surfaceLayer, grainCanvas } from './leather.js';
+
+// The bump map is finer than the colour map, so the pebble grain shows up close.
+const BUMP_PX = 20;
+import { buildJacket, applyFolds, VENT, THICK } from './model.js';
 import pkg from '../package.json';
 import { hitTest } from './editor2d.js';
 import { setSection, select } from './panels.js';
@@ -28,7 +31,7 @@ export const V = { ok:false, yaw:-0.45, pitch:0.08, zoom:1, baseDist:2, targetYa
 if (import.meta.env?.DEV) window.__V = V;
 
 // Look of the leather. Wear makes it a little rougher and less glossy.
-const LOOK = { bump:1.1, clearcoat:0.4, clearcoatRoughness:0.32, roughness:0.45, wornRoughness:0.2, liningRoughness:0.75, thickness:0.45 };
+const LOOK = { bump:1.1, clearcoat:0.3, clearcoatRoughness:0.42, roughness:0.5, wornRoughness:0.2, liningRoughness:0.75, thickness:THICK };
 
 export function init3D(){
   const canvas = $('#three');
@@ -94,9 +97,21 @@ export const buildKeyFor = () => JSON.stringify([state.meas, state.jacket.color,
 function gridGeometry(g, offset = 0){
   const { NU, NV, pos, normal, ao } = g, cols = NU + 1, n = cols*(NV + 1);
   const P = new Float32Array(n*3), N = new Float32Array(n*3), UV = new Float32Array(n*2), C = new Float32Array(n*3);
+  // Where each column's real top edge is (rows above it pile up at a cut-away). An offset
+  // shell (the lining) eases back to the leather over the top few rows, so the top edge is
+  // closed and nothing pokes out at the neckline or the armhole.
+  // Measured in cm from the exact top edge (g.tops), so the taper is smooth from column to column.
+  const H = sectionSize(g.section).h;
   for (let j = 0; j <= NV; j++) for (let i = 0; i <= NU; i++){
-    const k = j*cols + i, p = pos[j][i], q = normal[j][i];
-    P.set([p[0] - q[0]*offset, p[1] - q[1]*offset, p[2] - q[2]*offset], k*3); N.set(q, k*3);
+    // Using the deepest top among the neighbouring columns keeps the lining flush with the
+    // leather wherever the grid steps along the neckline, so the steps stay hidden.
+    // The torso's rows reach its top edge in every column (the neckline is squeezed, not
+    // cut), so it just eases in over the first rows. The sleeves still cut the cap away.
+    const sleeve = g.section === 'leftSleeve' || g.section === 'rightSleeve';
+    const top = Math.max(g.tops[Math.max(0, i - 1)], g.tops[i], g.tops[Math.min(NU, i + 1)]);
+    const ease = sleeve ? (H*j/NV - top - 0.7)/3 : j/5;
+    const k = j*cols + i, p = pos[j][i], q = normal[j][i], off = offset*Math.min(1, Math.max(0, ease));
+    P.set([p[0] - q[0]*off, p[1] - q[1]*off, p[2] - q[2]*off], k*3); N.set(q, k*3);
     UV.set([g.u0 + (g.u1 - g.u0)*i/NU, 1 - j/NV], k*2);
     const a = ao[j][i]; C.set([a, a, a], k*3);
   }
@@ -146,6 +161,34 @@ function edgeRows(g, line, inward, t){
   return [out, mid, inn];
 }
 
+// A surface given thickness: the surface itself, a copy `t` underneath, and rounded strips
+// joining them along the last row and both end columns. `cy` is a height below the surface,
+// used to tell which side is the outside.
+function thickRows(rows, t, cy){
+  const R = rows.length, N = rows[0].length, P = (r, k) => rows[Math.max(0, Math.min(R - 1, r))][Math.max(0, Math.min(N - 1, k))];
+  const nrm = (r, k) => {
+    const a = P(r, k + 1), b = P(r, k - 1), c = P(r + 1, k), d = P(r - 1, k), p = P(r, k);
+    const u = [a[0] - b[0], a[1] - b[1], a[2] - b[2]], v = [c[0] - d[0], c[1] - d[1], c[2] - d[2]];
+    let n = [u[1]*v[2] - u[2]*v[1], u[2]*v[0] - u[0]*v[2], u[0]*v[1] - u[1]*v[0]];
+    const L = Math.hypot(...n) || 1; n = n.map(x => x/L);
+    return (n[0]*p[0] + n[1]*(p[1] - cy) + n[2]*p[2]) < 0 ? n.map(x => -x) : n;
+  };
+  const under = rows.map((row, r) => row.map((p, k) => { const n = nrm(r, k); return [p[0] - n[0]*t, p[1] - n[1]*t, p[2] - n[2]*t]; }));
+  const strip = (outer, inner, normals) => [outer, outer.map((p, i) => { const n = normals[i], q = inner[i]; return [(p[0] + q[0])/2 + n[0]*0, (p[1] + q[1])/2, (p[2] + q[2])/2]; }), inner];
+  const roll = (outer, inner) => {
+    // Push the middle row outward (away from the surface's interior) so the edge is rounded.
+    const mid = outer.map((p, i) => {
+      const q = inner[i], c = outer[Math.min(outer.length - 1, i)], back = rows[R > 1 ? R - 2 : 0][i] || c;
+      return [(p[0] + q[0])/2 + (p[0] - back[0])*0.15, (p[1] + q[1])/2 + (p[1] - back[1])*0.15, (p[2] + q[2])/2 + (p[2] - back[2])*0.15];
+    });
+    return [outer, mid, inner];
+  };
+  const last = R - 1, col = (A, k) => A.map(row => row[k]);
+  return [rowsGeometry(rows), rowsGeometry(under), rowsGeometry(roll(rows[last], under[last])),
+    rowsGeometry(strip(col(rows, 0), col(under, 0), col(rows, 0).map(() => [0, 0, 0]))),
+    rowsGeometry(strip(col(rows, N - 1), col(under, N - 1), col(rows, 0).map(() => [0, 0, 0])))];
+}
+
 export function build3D(){
   if (!V.ok) return;
   builtKey = buildKeyFor();
@@ -188,8 +231,8 @@ export function build3D(){
       add(rowsGeometry(edgeRows(g, rows, [j => j, i => i === 0 ? 1 : i - 1], t)), zipMat);
     }
   }
-  add(rowsGeometry(J.collar), plainMat);
-  for (const l of J.lapels) add(rowsGeometry(l), plainMat);
+  // The collar has thickness too: its underside, and a rounded edge all round its outside.
+  for (const geo of thickRows(J.collar, t*0.6, J.dims.yNs - 25)) add(geo, plainMat);
   for (const s of SECTIONS) flattenUnderPatches(s);
   // Centre the jacket and frame it.
   const box = new THREE.Box3().setFromObject(model), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
@@ -205,7 +248,8 @@ const polyFill = (ctx, pts, k) => { ctx.beginPath(); pts.forEach(([x, y], i) => 
 export function renderTexture(s){
   if (!V.ok) return;
   const T = V.tex[s], { w, h } = sectionSize(s), k = TEX_PX, cw = Math.round(w*k), ch = Math.round(h*k), wear = state.jacket.wear ?? 0;
-  fit(T, cw, ch); fit(T.bump, cw, ch); fit(T.surf, cw, ch);
+  const bw = Math.round(w*BUMP_PX), bh = Math.round(h*BUMP_PX);
+  fit(T, cw, ch); fit(T.bump, bw, bh); fit(T.surf, cw, ch);
   for (const c of [T.mask, T.tint]) if (c.width !== cw || c.height !== ch){ c.width = cw; c.height = ch; }
   T.ctx.setTransform(1, 0, 0, 1, 0, 0);
   drawPanel(T.ctx, s, k, { sel:true, selPad:3, selWidth:3 });
@@ -223,16 +267,16 @@ export function renderTexture(s){
   const zones = noGoZones(s);
   // Bump: grain and creases, flaps and welts raised, patches raised more.
   const b = T.bump.ctx;
-  b.drawImage(heightLayer(s, state.meas, wear, k, zones.filter(z => z.kind === 'band')), 0, 0);
+  b.drawImage(heightLayer(s, state.meas, wear, BUMP_PX, zones.filter(z => z.kind === 'band')), 0, 0);
   b.fillStyle = 'rgba(255,255,255,.22)';
-  for (const z of zones) if (z.outline && (z.kind === 'lapel' || z.kind === 'collar' || z.kind === 'pocket')) polyFill(b, z.outline, k);
+  for (const z of zones) if (z.outline && (z.kind === 'lapel' || z.kind === 'collar' || z.kind === 'pocket')) polyFill(b, z.outline, BUMP_PX);
   const tgb = T.tint.getContext('2d'); tgb.clearRect(0, 0, cw, ch);
   tgb.globalCompositeOperation = 'source-over'; tgb.drawImage(T.mask, 0, 0);
   tgb.globalCompositeOperation = 'source-in'; tgb.fillStyle = 'rgb(176,176,176)'; tgb.fillRect(0, 0, cw, ch);
-  b.drawImage(T.tint, 0, 0);
-  // Surface: glossy leather (rougher where worn), matte felt.
+  b.drawImage(T.tint, 0, 0, bw, bh);
+  // Surface: satin leather, matte where the finish has worn off (leather.js), matte felt.
   const sf = T.surf.ctx, rough = LOOK.roughness + LOOK.wornRoughness*wear;
-  sf.fillStyle = `rgb(255,${Math.round(rough*255)},0)`; sf.fillRect(0, 0, cw, ch);
+  sf.imageSmoothingEnabled = true; sf.drawImage(surfaceLayer(s, state.meas, wear, LOOK.roughness), 0, 0, cw, ch);
   for (const z of zones) if (z.kind === 'band'){ sf.fillStyle = `rgb(200,${Math.round((rough + 0.1)*255)},0)`; sf.fillRect(z.x*k, z.y*k, z.w*k, z.h*k); }
   const tg = T.tint.getContext('2d'); tg.clearRect(0, 0, cw, ch);
   tg.globalCompositeOperation = 'source-over'; tg.drawImage(T.mask, 0, 0);

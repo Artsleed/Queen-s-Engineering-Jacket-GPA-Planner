@@ -13,7 +13,7 @@ const kinds = s => jacketZones(s, DEFAULT_MEAS).map(z => z.kind).sort();
 
 describe('jacketZones', () => {
   it('puts lapels, pockets, the opening, the neckline and the waistband on the front', () => {
-    expect(kinds('front')).toEqual(['band', 'cutaway', 'lapel', 'lapel', 'opening', 'pocket', 'pocket']);
+    expect(kinds('front')).toEqual(['band', 'cutaway', 'lapel', 'lapel', 'opening', 'pocket', 'pocket', 'vent', 'vent']);
   });
   it('puts the collar and waistband on the back', () => expect(kinds('back')).toEqual(['band', 'collar']));
   it('cuts both sides of each sleeve cap away, and has a sewable cuff with a snapped vent', () => {
@@ -35,6 +35,14 @@ describe('fit checks against the zones', () => {
   it('allows a patch just below the cap', () => {
     load([box('leftSleeve', 17, 6)]);
     expect(conflicts('leftSleeve').size).toBe(0);
+  });
+  it('allows a flag on the back waistband (they do get sewn there)', () => {
+    load([box('back', 10, DEFAULT_MEAS.length - DEFAULT_MEAS.waistband + 1)]);
+    expect(conflicts('back').size).toBe(0);
+  });
+  it('flags a patch over the waistband snaps by the zipper', () => {
+    load([box('front', DEFAULT_MEAS.chest/4 + 1.6, DEFAULT_MEAS.length - DEFAULT_MEAS.waistband + 1)]);
+    expect(conflicts('front').get('a')).toBe('Covers the waistband snaps');
   });
   it('flags a patch on a lapel', () => {
     load([box('front', DEFAULT_MEAS.chest/4 - 7, 10)]); // clear of the front opening strip
