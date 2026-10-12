@@ -7,7 +7,7 @@
 // agree: the cut-aways (the neckline, and the sleeve cap by the underarm, where the flat
 // rectangle is bigger than the real pattern piece) and the collar and lapels.
 import { FRONT, CUFF_VENT } from './config.js';
-import { cutaways, bodyDims, neckSides, collarSize } from './model.js';
+import { cutaways, bodyDims, neckSides, collarSize, frontCollarEdge, backCollarEdge } from './model.js';
 
 const bbox = pts => {
   const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), x = Math.min(...xs), y = Math.min(...ys);
@@ -41,20 +41,15 @@ function lapelZone(m, side){
   for (let i = 0; i < 40; i++){ const x = xe + side*tipX*s, y = tipY*s; if (side*(x - lapelX(y)) > 0) s -= 0.5**(i + 2); else s += 0.5**(i + 2); }
   const cross = [xe + side*tipX*s, tipY*s];
   const curve = [];
-  for (let k = 1; k < 8; k++){ const q = k/8; curve.push([tip[0] + (xs - tip[0])*q, tipY*Math.pow(1 - q, 1.8)]); }
+  for (let k = 1; k < 12; k++) curve.push(frontCollarEdge(d, side, k/12));
   return zone([[xs, 0], [xe, 0], [xe, lapelDrop], cross, tip, ...curve], { label:'Lapel', kind:'lapel', side });
 }
 // The collar lying on the top of the back.
 function backCollarZone(m){
-  const d = bodyDims(m), W = d.W, ns = neckSides(d), xa = (1 - ns.back)*W, xb = ns.back*W, { fall } = collarSize(d), sp = fall*W/ns.topBack;
-  const pts = [];
-  for (let k = 0; k <= 24; k++){
-    const r = k/24, nx = xa + (xb - xa)*r, edge = 1 - smoothstep(0, 0.25, Math.min(r, 1 - r));
-    pts.push([nx + (r < 0.5 ? 1 : -1)*edge*sp, fall*(1 - edge*edge)]);
-  }
+  const d = bodyDims(m), pts = [];
+  for (let k = 0; k <= 40; k++) pts.push(backCollarEdge(d, k/40));
   return zone(pts, { label:'Collar', kind:'collar' });
 }
-const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a)/(b - a))); return t*t*(3 - 2*t); };
 
 // A slanted welt pocket: the top leans toward the front edge.
 function pocketZone(m, side){

@@ -109,7 +109,7 @@ function gridGeometry(g, offset = 0){
     // cut), so it just eases in over the first rows. The sleeves still cut the cap away.
     const sleeve = g.section === 'leftSleeve' || g.section === 'rightSleeve';
     const top = Math.max(g.tops[Math.max(0, i - 1)], g.tops[i], g.tops[Math.min(NU, i + 1)]);
-    const ease = sleeve ? (H*j/NV - top - 0.7)/3 : j/5;
+    const ease = sleeve ? (H*j/NV - top - 2)/4 : j/5;
     const k = j*cols + i, p = pos[j][i], q = normal[j][i], off = offset*Math.min(1, Math.max(0, ease));
     P.set([p[0] - q[0]*off, p[1] - q[1]*off, p[2] - q[2]*off], k*3); N.set(q, k*3);
     UV.set([g.u0 + (g.u1 - g.u0)*i/NU, 1 - j/NV], k*2);
@@ -166,14 +166,19 @@ function edgeRows(g, line, inward, t){
 // used to tell which side is the outside.
 function thickRows(rows, t, cy){
   const R = rows.length, N = rows[0].length, P = (r, k) => rows[Math.max(0, Math.min(R - 1, r))][Math.max(0, Math.min(N - 1, k))];
-  const nrm = (r, k) => {
-    const a = P(r, k + 1), b = P(r, k - 1), c = P(r + 1, k), d = P(r - 1, k), p = P(r, k);
+  const raw = rows.map((row, r) => row.map((p, k) => {
+    const a = P(r, k + 1), b = P(r, k - 1), c = P(r + 1, k), d = P(r - 1, k);
     const u = [a[0] - b[0], a[1] - b[1], a[2] - b[2]], v = [c[0] - d[0], c[1] - d[1], c[2] - d[2]];
-    let n = [u[1]*v[2] - u[2]*v[1], u[2]*v[0] - u[0]*v[2], u[0]*v[1] - u[1]*v[0]];
-    const L = Math.hypot(...n) || 1; n = n.map(x => x/L);
-    return (n[0]*p[0] + n[1]*(p[1] - cy) + n[2]*p[2]) < 0 ? n.map(x => -x) : n;
-  };
-  const under = rows.map((row, r) => row.map((p, k) => { const n = nrm(r, k); return [p[0] - n[0]*t, p[1] - n[1]*t, p[2] - n[2]*t]; }));
+    const n = [u[1]*v[2] - u[2]*v[1], u[2]*v[0] - u[0]*v[2], u[0]*v[1] - u[1]*v[0]], L = Math.hypot(...n) || 1;
+    return n.map(x => x/L);
+  }));
+  // Pick the outside once for the whole surface, by the last row (it lies on the jacket, facing
+  // out), not point by point: a collar's stand faces the neck, so a per-point test flips it
+  // part way round the fold and the underside pokes through the top in shards.
+  let vote = 0;
+  raw[R - 1].forEach((n, k) => { const p = rows[R - 1][k]; vote += Math.sign(n[0]*p[0] + n[1]*(p[1] - cy) + n[2]*p[2]); });
+  const s = vote < 0 ? -t : t;
+  const under = rows.map((row, r) => row.map((p, k) => { const n = raw[r][k]; return [p[0] - n[0]*s, p[1] - n[1]*s, p[2] - n[2]*s]; }));
   const strip = (outer, inner, normals) => [outer, outer.map((p, i) => { const n = normals[i], q = inner[i]; return [(p[0] + q[0])/2 + n[0]*0, (p[1] + q[1])/2, (p[2] + q[2])/2]; }), inner];
   const roll = (outer, inner) => {
     // Push the middle row outward (away from the surface's interior) so the edge is rounded.
