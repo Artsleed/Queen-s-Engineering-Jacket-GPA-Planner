@@ -31,11 +31,8 @@ export function foldsFor(section, m){
   const seg = (x0, y0, x1, y1, w, a) => out.push({ x0, y0, x1, y1, w, a });
   if (!isSleeve(section)){
     const wb = m.waistband, top = H - wb;
-    // The body blouses over the waistband: a roll just above it, tucked in at the seam.
-    out.push({ ring:true, y:top - 0.7, w:0.7, a:-0.55, wave:0.4, period:W/3, phase:rnd()*6 });
-    out.push({ ring:true, y:top - 2.4, w:1.3, a:0.5, wave:0.7, period:W/2, phase:rnd()*6 });
-    out.push({ ring:true, y:top - 5.6, w:1.8, a:0.18, wave:1.2, period:W/2, phase:rnd()*6 });
-    out.push({ pleats:true, y0:top, y1:H, period:6.5, a:0.05 });
+    // The waistband hangs straight (it isn't cinched), so just a soft, shallow wave above it.
+    out.push({ ring:true, y:top - 4, w:2, a:0.12, wave:1.2, period:W/2, phase:rnd()*6 });
     if (section === 'back'){
       // Soft drape from the shoulder blades.
       for (const sx of [0.3, 0.7]) seg(W*sx + jit(2), H*0.33, W*sx + jit(3) + (sx < 0.5 ? -2 : 2), H*0.8, 2.6, 0.22);
@@ -56,13 +53,10 @@ export function foldsFor(section, m){
       const half = 4.8 - i*0.5, tilt = jit(1.4);
       seg(front - half, yE + dy - tilt, front + half, yE + dy + tilt, 0.85, a);
     });
-    // Bunching above the cuff, all the way round.
+    // The cuff isn't cinched, so the forearm only gets a couple of soft creases above it.
     const cy = H - cf;
-    out.push({ ring:true, y:cy - 1.1, w:0.6, a:-0.5, wave:0.5, period:W/2, phase:rnd()*6 });
-    out.push({ ring:true, y:cy - 2.9, w:1.0, a:0.48, wave:0.9, period:W/3, phase:rnd()*6 });
-    out.push({ ring:true, y:cy - 5.0, w:0.9, a:-0.3, wave:1.1, period:W/2, phase:rnd()*6 });
-    out.push({ ring:true, y:cy - 7.4, w:1.3, a:0.25, wave:1.4, period:W/3, phase:rnd()*6 });
-    out.push({ pleats:true, y0:cy, y1:H, period:5, a:0.05 });
+    out.push({ ring:true, y:cy - 3, w:1.0, a:0.2, wave:1.0, period:W/3, phase:rnd()*6 });
+    out.push({ ring:true, y:cy - 6.5, w:1.2, a:-0.14, wave:1.3, period:W/2, phase:rnd()*6 });
     // Folds running down from the underarm seam.
     seg(1.5, 7, 6.5, 17, 1.2, 0.25); seg(W - 1.5, 7, W - 6.5, 17, 1.2, 0.25);
   }

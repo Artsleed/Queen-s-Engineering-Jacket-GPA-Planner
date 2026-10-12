@@ -155,14 +155,8 @@ export function heightLayer(section, m, wear, k, bands){
     strokeCreases(g, list, n, k, (ctx, w, depth) => { ctx.lineWidth = Math.max(1, w*1.6); ctx.lineCap = 'round'; ctx.strokeStyle = `rgba(255,255,255,${0.1*depth})`; });
     g.restore();
     strokeCreases(g, list, n, k, (ctx, w, depth) => { ctx.lineWidth = Math.max(1, w); ctx.lineCap = 'round'; ctx.strokeStyle = `rgba(0,0,0,${0.2*depth})`; });
-    for (const z of bands){
-      const step = 4.5*k;
-      for (let x = z.x*k; x < (z.x + z.w)*k; x += step){
-        const gr = g.createLinearGradient(x, 0, x + step, 0);
-        gr.addColorStop(0, 'rgba(0,0,0,.05)'); gr.addColorStop(.5, 'rgba(255,255,255,.04)'); gr.addColorStop(1, 'rgba(0,0,0,.05)');
-        g.fillStyle = gr; g.fillRect(x, z.y*k, step, z.h*k);
-      }
-    }
+    // The band's top seam: a slight groove.
+    for (const z of bands){ g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(z.x*k, z.y*k - k*0.1, z.w*k, k*0.2); }
     return c;
   }, 8);
 }

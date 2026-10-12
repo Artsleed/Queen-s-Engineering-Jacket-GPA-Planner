@@ -5,10 +5,10 @@ import { DEFAULT_MEAS } from '../src/config.js';
 
 describe('folds', () => {
   it('are the same every time (so creases never move)', () => expect(foldsFor('back', DEFAULT_MEAS)).toEqual(foldsFor('back', DEFAULT_MEAS)));
-  it('bunch above the cuff and inside the elbow, not on the outer upper arm', () => {
+  it('bunch inside the elbow, stay gentle above the (uncinched) cuff, and leave the outer upper arm smooth', () => {
     const f = foldsFor('leftSleeve', DEFAULT_MEAS), H = DEFAULT_MEAS.sleeve, W = DEFAULT_MEAS.sleeveCirc;
     const ripple = (x, y0, y1) => { let lo = Infinity, hi = -Infinity; for (let y = y0; y <= y1; y += 0.2){ const h = foldHeight(f, x, y); lo = Math.min(lo, h); hi = Math.max(hi, h); } return hi - lo; };
-    expect(ripple(W/2, H - DEFAULT_MEAS.cuff - 9, H - DEFAULT_MEAS.cuff)).toBeGreaterThan(0.5);
+    expect(ripple(W/2, H - DEFAULT_MEAS.cuff - 9, H - DEFAULT_MEAS.cuff)).toBeLessThan(0.45);
     expect(ripple(sleeveSides('leftSleeve', W).front, H*0.4, H*0.52)).toBeGreaterThan(0.5);
     expect(ripple(W/2, 8, 16)).toBeLessThan(0.15);
   });

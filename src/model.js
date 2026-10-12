@@ -51,9 +51,11 @@ export function bodyDims(m){
   const yS = yNs - 0.05*C;             // shoulder point, where the sleeve starts
   return {
     C, L, W:C/2, n, a, bF:a*kF, bB:a*kB,
-    yNs, yS, yA:yS - 0.2*C,            // armpit
+    // Proportions from Nathaniel's jacket (127 cm chest): 56 cm shoulder seam to shoulder seam,
+    // 25 cm across the back neckline, 23 cm from the shoulder point down to the armpit.
+    yNs, yS, yA:yS - 0.18*C,           // armpit
     yNf:yNs - 0.085*C, yNb:yNs - 2,    // front and back of the neckline
-    SH:0.215*C, NW:0.07*C,             // half the shoulder width, half the neck width
+    SH:0.22*C, NW:0.1*C,               // half the shoulder width, half the neck width
     zS:0.5, zNf:0.08*C, zNb:-0.05*C,   // depth of the shoulder seam and of the neckline
     armhole:0.04*C,                    // how far the armhole bows forward and back
     wb:m.waistband, cuff:m.cuff, open:m.zipper,
@@ -70,12 +72,11 @@ function halfRow(a, b, n, side, N = 160){
 }
 function halfPerimeter(a, b, n){ const c = lengths(halfRow(a, b, n, 1)); return c[c.length - 1]; }
 
-// Width and depth of the torso at height y, as multiples of the chest: gathered into the
-// waistband, bloused just above it, fuller over the chest and the shoulder blades.
+// Width and depth of the torso at height y, as multiples of the chest: fuller over the
+// chest and the shoulder blades. The waistband isn't gathered in: it hangs straight down,
+// the same width as the body (Nathaniel).
 function rowScale(d, y){
-  const inBand = 1 - smooth(d.wb - 0.6, d.wb + 1.2, y);
-  const blouse = Math.exp(-(((y - d.wb - 3.5)/4.5)**2));
-  const s = 1 - 0.1*inBand + 0.035*blouse*(1 - inBand);
+  const s = 1;
   const chest = Math.exp(-(((y - (d.yA - 4))/9)**2)), blades = Math.exp(-(((y - (d.yA - 3))/10)**2));
   return { sa:s, sF:s*(1 + 0.05*chest), sB:s*(1 + 0.06*blades) };
 }
@@ -181,7 +182,8 @@ function sleeveAxis(d, side){
 }
 // Sleeve girth down its length, as a share of the upper-arm circumference.
 function girth(d, yv){
-  const H = d.sleeveL, c = d.cuff, keys = [[0, 1], [0.2*H, 1], [0.44*H, 0.88], [0.72*H, 0.8], [H - c - 4, 0.85], [H - c, 0.66], [H, 0.63]];
+  // The cuff isn't gathered in: it carries straight on from the forearm (Nathaniel).
+  const H = d.sleeveL, keys = [[0, 1], [0.2*H, 1], [0.44*H, 0.9], [0.72*H, 0.84], [H, 0.82]];
   for (let i = 1; i < keys.length; i++) if (yv <= keys[i][0]){
     const [y0, g0] = keys[i - 1], [y1, g1] = keys[i];
     return g0 + (g1 - g0)*smooth(y0, y1, yv);
@@ -190,10 +192,16 @@ function girth(d, yv){
 }
 // A point on the sleeve tube: u around (0 underarm, 0.5 outer side), yv cm down the sleeve.
 // `s` shortens the arm so the outer side's length, cap included, matches the sleeve length.
+// The cuffs are worn unsnapped: the vent at the underarm seam opens into a V, widest at the
+// cuff's edge, and the cuff flares slightly. u = 0 and u = 1 are the two sides of the vent.
+export const VENT = { len:7.6, gap:7 }; // cm up from the cuff edge; cm apart at the edge
+function ventOpen(d, yv){ return smooth(d.sleeveL - VENT.len, d.sleeveL, yv); }
 function tubePoint(d, ax, side, u, yv, s = 1){
   const { p:A, t:T } = ax.at(Math.max(0, (yv - 3)*s));
-  const out = norm(sub([side, 0, 0], mul(T, side*T[0]))), F = cross(T, out);
-  const r = d.sleeveW*girth(d, yv)/(2*Math.PI), psi = 2*Math.PI*u;
+  const out = norm(sub([side, 0, 0], mul(T, side*T[0]))), F = cross(T, out), open = ventOpen(d, yv);
+  const r0 = d.sleeveW*girth(d, yv)/(2*Math.PI), r = r0*(1 + 0.07*open);
+  // Each side of the vent swings round the arm by half the gap, easing off toward the outer side.
+  const swing = open*VENT.gap/2/r*(1 - smooth(0, 0.35, Math.min(u, 1 - u))), psi = 2*Math.PI*u + (u < 0.5 ? swing : -swing);
   return add(A, add(mul(out, -Math.cos(psi)*r*1.04), mul(F, Math.sin(psi)*r*0.96)));
 }
 
@@ -234,7 +242,11 @@ function sleevePanel(d, T, section, NU, NV){
     let yc = 8;
     while (yc < H*0.6 && tubePoint(d, ax, side, u, yc, s)[1] > P0[1] - 5) yc += 0.5;
     const P1 = tubePoint(d, ax, side, u, yc, s), D = len(sub(P1, P0));
-    const T0 = mul(norm(sub(P0, ax.J)), D*0.75), T1 = mul(ax.at((yc - 3)*s).t, D);
+    // How the cap leaves the armhole: over the top, carrying on down the shoulder's slope;
+    // round toward the underarm, heading down the arm. (Aiming it away from the shoulder
+    // joint, which sits below the shoulder point, made the cap rise into a lip.)
+    const slope = norm([side*(d.SH - d.NW), (d.yS - d.yNs) - 0.35*(d.SH - d.NW), 0]), arm = ax.at(0).t;
+    const T0 = mul(norm(lerp(slope, arm, smooth(0.15, 0.85, Math.abs(u - 0.5)*2))), D*0.9), T1 = mul(ax.at((yc - 3)*s).t, D);
     const merid = [];
     for (let k = 0; k <= 30; k++) merid.push(hermite(P0, T0, P1, T1, k/30));
     for (let yv = yc + 0.5; yv <= H + 1e-6; yv += 0.5) merid.push(tubePoint(d, ax, side, u, yv, s));
@@ -332,7 +344,7 @@ export function panelAt(g, W, H, x, y){
 // The lapels: the top of each front edge folded back over the panel, a triangle from the
 // neckline down to the break point. Returned as small grids of points lying on the front.
 function lapels(d, F, m){
-  const W = d.W, H = d.L, { lapelW, lapelDrop } = LAPEL, out = [];
+  const W = d.W, H = d.L, { lapelW, lapelDrop } = collarSize(d), out = [];
   for (const [g, side] of [[F.left, -1], [F.right, 1]]){
     const rows = [];
     for (let a = 0; a <= 12; a++){
@@ -354,43 +366,76 @@ function lapels(d, F, m){
 // The collar: a short stand round the neck, folded down over the shoulders, with its points
 // lying on the chest. Rows run from the neck edge to the outer edge.
 function collar(d, F, B){
-  const W = d.W, H = d.L, ns = neckSides(d), { tipX, tipY, spread } = LAPEL;
+  const W = d.W, H = d.L, ns = neckSides(d), { tipX, tipY, fall } = collarSize(d), spread = { front:fall, back:fall };
   const neck = [], outer = [];
   const push = (n, o) => { neck.push(n); outer.push(o); };
+  // Round the back and over the shoulders the collar lies on top of the jacket: its outer
+  // edge is `fall` out from the neckline, straight away from the neck, dropped onto the
+  // surface below. (Done in 3D: in flat panel terms it would pinch at the shoulder seams.)
+  const verts = [F.left, F.right, B].map(g => g.pos.slice(0, Math.round(g.NV*0.4)).map((row, j) => row.map((p, i) => [p, g.normal[j][i]])).flat()).flat();
+  const zc = (d.zNf + d.zNb)/2;
+  const nearest = q => { let best = verts[0], bd = Infinity; for (const t of verts){ const dd = (t[0][0] - q[0])**2 + (t[0][1] - q[1])**2 + (t[0][2] - q[2])**2; if (dd < bd){ bd = dd; best = t; } } return best; };
+  // Walk `fall` cm over the surface from the neck point, heading straight away from the neck.
+  const walk = nk => {
+    const d0 = norm([nk[0], 0, nk[2] - zc]);
+    let p = nk, n = nearest(nk)[1], gone = 0;
+    while (gone < fall){
+      const tdir = norm(sub(d0, mul(n, dot(d0, n)))), step = Math.min(0.5, fall - gone);
+      const hit = nearest(add(p, mul(tdir, step))), q = add(hit[0], mul(hit[1], 0));
+      const moved = len(sub(q, p));
+      if (moved < 1e-3){ p = add(p, mul(tdir, step)); gone += step; continue; }
+      gone += moved; p = q; n = hit[1];
+    }
+    return { p, n };
+  };
+  const onTop = walk;
   // Front left: opening edge to the neck side, outer edge from the tip to the shoulder seam.
   const frontSide = (g, side) => {
     const xe = W/2, xn = side < 0 ? ns.front*W : (1 - ns.front)*W, xs = xn + side*spread.front*W/ns.topFront;
     const pts = [];
     for (let k = 0; k <= 16; k++){
       const q = k/16, nx = xe + (xn - xe)*q;
-      const ox = (xe + side*tipX) + (xs - (xe + side*tipX))*q, oy = tipY*Math.pow(1 - q, 1.3);
-      pts.push([panelAt(g, W, H, nx, 0.01).p, panelAt(g, W, H, ox, oy)]);
+      const ox = (xe + side*tipX) + (xs - (xe + side*tipX))*q, oy = tipY*Math.pow(1 - q, 1.8);
+      const nk = panelAt(g, W, H, nx, 0.01).p, flat = panelAt(g, W, H, ox, oy), blend = smooth(0.55, 1, q);
+      if (blend <= 0){ pts.push([nk, flat]); continue; }
+      const top = walk(nk);
+      pts.push([nk, { p:lerp(flat.p, top.p, blend), n:norm(lerp(flat.n, top.n, blend)) }]);
     }
     return pts;
   };
   const back = () => {
     const xa = (1 - ns.back)*W, xb = ns.back*W, pts = [];
     for (let k = 1; k < 40; k++){
-      const r = k/40, nx = xa + (xb - xa)*r, edge = 1 - smooth(0, 0.2, Math.min(r, 1 - r));
-      const dir = r < 0.5 ? 1 : -1, ox = nx + dir*edge*spread.back*W/ns.topBack, oy = 5.5*(1 - edge);
-      pts.push([panelAt(B, W, H, nx, 0.01).p, panelAt(B, W, H, ox, oy)]);
+      const nk = panelAt(B, W, H, xa + (xb - xa)*k/40, 0.01).p;
+      pts.push([nk, walk(nk)]);
     }
     return pts;
   };
   for (const [n, o] of frontSide(F.left, -1)) push(n, o);
   for (const [n, o] of back()) push(n, o);
   for (const [n, o] of frontSide(F.right, 1).reverse()) push(n, o);
+  for (let pass = 0; pass < 6; pass++){
+    const prev = outer.map(o => ({ p:o.p.slice(), n:o.n.slice() }));
+    for (let k = 10; k < outer.length - 10; k++){
+      outer[k] = { p:mul(add(add(prev[k - 1].p, prev[k + 1].p), mul(prev[k].p, 2)), 0.25), n:norm(add(add(prev[k - 1].n, prev[k + 1].n), mul(prev[k].n, 2))) };
+    }
+  }
   // Rows: neck edge, top of the stand, the fold, partway down the fall, the outer edge.
   const N = neck.length, rows = [[], [], [], [], []];
   for (let k = 0; k < N; k++){
-    const end = Math.min(k, N - 1 - k)/6, stand = 1.7*Math.min(1, end) + 0.4;
+    // A low stand round the neck (dropping to nothing at the collar's front ends), folded
+    // straight over, then the fall lying close to the jacket out to its edge.
+    const end = Math.min(k, N - 1 - k)/8, stand = LAPEL.stand*Math.min(1, end) + 0.25;
     const nk = neck[k], o = outer[k], out = norm([nk[0], 0, nk[2] - 0.5]);
     const up = [0, 1, 0];
-    rows[0].push(add(nk, mul(out, 0.3)));
-    rows[1].push(add(add(nk, mul(up, stand)), mul(out, 0.6)));
-    rows[2].push(add(add(nk, mul(up, stand + 0.25)), mul(out, 1.6)));
-    rows[3].push(add(lerp(rows[2][k], add(o.p, mul(o.n, 0.7)), 0.5), mul(o.n, 0.5)));
-    rows[4].push(add(o.p, mul(o.n, 0.7)));
+    rows[0].push(add(nk, mul(out, 0.25)));
+    rows[1].push(add(add(nk, mul(up, stand)), mul(out, 0.45)));
+    rows[2].push(add(add(nk, mul(up, stand + 0.15)), mul(out, 1.1)));
+    const onBody = add(o.p, mul(o.n, 0.4)), mid = lerp(rows[2][k], onBody, 0.45);
+    // Partway down the fall: just off the jacket's surface below it, not cutting the corner.
+    const below = lerp(nk, o.p, 0.45);
+    rows[3].push(add(lerp(mid, below, 0.35), mul(o.n, 0.5)));
+    rows[4].push(onBody);
   }
   return rows;
 }
@@ -416,7 +461,17 @@ function topEdgeRaw(d, panel){
   return [...half, ...mirror];
 }
 // Collar and lapel sizes, in section cm. state.js turns these into no-go zones.
-export const LAPEL = { lapelW:9, lapelDrop:24, tipX:8, tipY:9, spread:{ front:6, back:6 } };
+// From Nathaniel's photo: a flat shirt collar about 6.5 cm deep all round, with big points
+// lying on the chest, and the front edges folded back a little just under it.
+// From Nathaniel's jacket: the collar lies 5 cm deep at the back, with 7.5 cm points. The
+// front edges fold back a little just under the points.
+export const LAPEL = { point:7.6, fall:5.1, stand:1.0, lapelW:4 };
+// The collar point and the fold-back, in front-section cm: the tip is `point` cm from where the
+// collar meets the neckline at the front edge, angled down and out.
+export function collarSize(d){
+  const depth = d.yNs - d.yNf, tipX = LAPEL.point*0.65, tipY = depth + LAPEL.point*0.76;
+  return { ...LAPEL, tipX, tipY, lapelDrop:tipY + 3 };
+}
 
 /* ----- The whole jacket ----- */
 // Everything the 3D view needs, from the measurements. Each panel has pos, normal, ao

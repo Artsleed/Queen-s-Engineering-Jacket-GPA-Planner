@@ -4,7 +4,9 @@
 // Most items collide by their bounding box. Curved bars use their real outline
 // (see shapes.js) so a stack of bars can nest the way they do on a real sleeve.
 import { SNAP_STEP } from './config.js';
-import { state, sectionSize, noGoZones, dims, getDef } from './state.js';
+import { state, sectionSize, noGoZones as allZones, dims, getDef } from './state.js';
+// Only zones nothing can be sewn on (the cuff band, for one, is drawn as a zone but sewable).
+const noGoZones = s => allZones(s).filter(z => !z.sewable);
 import { localOutline, rectOutline, outlinesClash } from './shapes.js';
 
 export function boxesClash(a, b, gap){

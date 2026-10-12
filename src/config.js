@@ -2,7 +2,9 @@
    DATA — edit these to match the real jacket and the real bars.
    Sizes are in centimetres. Bar sizes and colours below are placeholders.
    ===================================================================== */
-export const DEFAULT_MEAS = { chest:110, length:68, sleeve:64, sleeveCirc:38, waistband:6, cuff:6, zipper:3, gap:0.3 };
+// Nathaniel's own GPA, measured flat (converted from inches): 25" armpit to armpit, 26" collar seam
+// to hem, 25" sleeve, 3" waistband, 2.5" cuff. The sleeve width is still the old guess (see CLAUDE.md).
+export const DEFAULT_MEAS = { chest:127, length:66, sleeve:63.5, sleeveCirc:38, waistband:7.5, cuff:6.5, zipper:3, gap:0.3 };
 // Leather colours, matched to photos: undyed GPAs are a khaki yellow, dyed ones a dark purple.
 // `worn` is what the leather turns where it rubs: undyed darkens to a patina, purple dye
 // wears through to tan (both from Nathaniel's photos).
@@ -14,17 +16,22 @@ export const JACKET_COLOURS = [
 export const DEFAULT_JACKET = { color:JACKET_COLOURS[0].color, lining:'#1C1C21', wear:0.3 };
 
 // Front details, from Nathaniel's photo of an open GPA (cm, or fractions of the front panel).
+// Measured off Nathaniel's photo of a front panel (scaled from a 6 cm waistband).
 export const FRONT = {
-  pocketW:5, pocketH:16,  // bounding box of each slanted welt pocket
-  pocketX:0.23,           // pocket centre, out from the middle, as a share of the front's width
-  pocketTop:0.5,          // pocket top, down from the shoulder, as a share of the body length
+  pocketLen:14,           // welt pocket length, along its slant
+  pocketFromEdge:16.5,    // from the front edge to the pocket's middle
+  pocketAboveBand:4.5,    // from the top of the waistband up to the pocket's lower end
+  pocketSlant:9,          // degrees off vertical; the top leans toward the front edge
+  snapFromEdge:1.8,       // the pair of waistband snaps, in from each front edge
 };
+// Bars can be sewn on the cuff (Nathaniel's photo), except over the snapped vent by the underarm seam.
+export const CUFF_VENT = 4;  // cm each side of the underarm seam
 
 // Chenille lettering on felt backing (from Nathaniel's photos). The back letters are royal
 // blue on a dark red-brown backing that shows as a thin edge and fills the letters' holes.
-// The year digits are blue with a stitched red line, on a wide yellow felt backing.
+// The year digits are blue chenille with a slight yellow edge, on red felt backing.
 const BACK_LETTERS = { bg:'#2D3BB5', fg:'#2D3BB5', border:'#6F2427', backing:'#6F2427' };
-const YEAR_DIGITS = { bg:'#3D4FB8', fg:'#3D4FB8', border:'#C8283A', backing:'#F2C21E' };
+const YEAR_DIGITS = { bg:'#3D4FB8', fg:'#3D4FB8', border:'#F2C21E', backing:'#C8283A' };
 // Last two digits of the graduating year for this year's first-years (classes start in September).
 export function froshYear(now = new Date()){ return String((now.getFullYear() + (now.getMonth() >= 8 ? 4 : 3)) % 100).padStart(2, '0'); }
 

@@ -9,7 +9,7 @@ import { topAt } from './zones.js';
 const GAP = 1.5;   // cm between stacked sleeve pieces
 const TOP = 3;     // cm from the shoulder seam to the first sleeve piece (at the outer side)
 const CAP = 1;     // cm clear of the sleeve cap's curve, where it dips toward the underarm
-const BACK_TOP = 7; // cm from the neckline to the top of QUEEN'S (the collar covers the first 5.5)
+const BACK_TOP = 7; // cm from the neckline to the top of QUEEN'S (the collar covers the first 5)
 
 // item id -> { section, x, y } for a jacket with these measurements.
 // `size(id)` gives an item's { w, h } so this file doesn't depend on the catalogue.

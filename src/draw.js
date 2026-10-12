@@ -195,6 +195,39 @@ function fillHoles(c){
   for (let i = 0; i < W*H; i++) if (!out[i]){ D[i*4] = D[i*4 + 1] = D[i*4 + 2] = 255; D[i*4 + 3] = 255; }
   g.putImageData(img, 0, 0);
 }
+// Bits of a letter that sit inside one of its holes, like the block in the middle of
+// Graduate's 0. On a real patch the felt fills the hole, so these get left out.
+// Returns a mask of them, grown by `grow` px so their outlines go too.
+function innerBits(glyphMask, grow){
+  const W = glyphMask.width, H = glyphMask.height, D = glyphMask.getContext('2d').getImageData(0, 0, W, H).data;
+  const ink = i => D[i*4 + 3] >= 128, outside = new Uint8Array(W*H), comp = new Int32Array(W*H).fill(-1), stack = [];
+  const nb = i => { const x = i % W, out = []; if (x > 0) out.push(i - 1); if (x < W - 1) out.push(i + 1); if (i >= W) out.push(i - W); if (i < W*(H - 1)) out.push(i + W); return out; };
+  // Empty space reachable from the border is outside; empty space that isn't is a hole.
+  const seed = i => { if (!outside[i] && !ink(i)){ outside[i] = 1; stack.push(i); } };
+  for (let x = 0; x < W; x++){ seed(x); seed((H - 1)*W + x); }
+  for (let y = 0; y < H; y++){ seed(y*W); seed(y*W + W - 1); }
+  while (stack.length) for (const j of nb(stack.pop())) seed(j);
+  // A piece of letter that never touches the outside is inside a hole.
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  const og = out.getContext('2d'), img = og.createImageData(W, H);
+  let found = false;
+  for (let i = 0; i < W*H; i++){
+    if (!ink(i) || comp[i] >= 0) continue;
+    const pix = [i]; comp[i] = i; let touches = false;
+    for (let k = 0; k < pix.length; k++) for (const j of nb(pix[k])){
+      if (ink(j)){ if (comp[j] < 0){ comp[j] = i; pix.push(j); } }
+      else if (outside[j]) touches = true;
+    }
+    if (!touches){ found = true; for (const p of pix) img.data[p*4 + 3] = 255; }
+  }
+  if (!found) return null;
+  og.putImageData(img, 0, 0);
+  const grown = document.createElement('canvas'); grown.width = W; grown.height = H;
+  const gg = grown.getContext('2d');
+  for (let a = 0; a < 16; a++) gg.drawImage(out, Math.cos(a/16*Math.PI*2)*grow, Math.sin(a/16*Math.PI*2)*grow);
+  gg.drawImage(out, 0, 0);
+  return grown;
+}
 function tinted(c, colour){
   const t = document.createElement('canvas'); t.width = c.width; t.height = c.height;
   const g = t.getContext('2d'); g.drawImage(c, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = colour; g.fillRect(0, 0, t.width, t.height);
@@ -215,10 +248,12 @@ function drawChenille(ctx, key, x, y, w, h, glyphs, look, o){
   ctx.drawImage(o.mask ? c.mask : c.art, x - pad, y - pad);
 }
 function buildChenille(W, H, pad, glyphs, look){
-  const layer = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.translate(pad, pad); g.lineJoin = 'round'; return [c, g]; };
+  // `read`: layers whose pixels get read back (hole finding). Keeping those on the CPU makes
+  // getImageData cheap; on a GPU-backed canvas each read can take a second in software WebGL.
+  const layer = (read = false) => { const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d', read ? { willReadFrequently:true } : undefined); g.translate(pad, pad); g.lineJoin = 'round'; return [c, g]; };
   // The backing: each letter with its holes filled in (before growing, so neighbouring
   // letters don't merge), then grown by the backing width.
-  const [lc, lg] = layer(); lg.fillStyle = '#fff'; glyphs(lg, 'fill'); fillHoles(lc);
+  const [lc, lg] = layer(true); lg.fillStyle = '#fff'; glyphs(lg, 'fill'); fillHoles(lc);
   const [bc, bg] = layer(); bg.setTransform(1, 0, 0, 1, 0, 0);
   for (let i = 0; i < 24; i++){ const a = i/24*Math.PI*2; for (const r of [look.backingW, look.backingW*0.55]) bg.drawImage(lc, Math.cos(a)*r, Math.sin(a)*r); }
   bg.drawImage(lc, 0, 0);
@@ -227,11 +262,16 @@ function buildChenille(W, H, pad, glyphs, look){
   ag.drawImage(tinted(bc, look.backing), 0, 0); ag.restore();
   // Felt texture on the backing.
   ag.save(); ag.globalCompositeOperation = 'source-atop'; ag.globalAlpha = 0.18; ag.fillStyle = ag.createPattern(grainCanvasCached(), 'repeat'); ag.fillRect(0, 0, W, H); ag.restore();
-  ag.translate(pad, pad); ag.lineJoin = 'round';
+  const [gm, gg] = layer(true); gg.fillStyle = '#fff'; glyphs(gg, 'fill');
+  const inner = innerBits(gm, look.lineW*1.5 + 1.5);
   // A stitched line round the chenille (the year digits have one).
-  if (look.line){ ag.strokeStyle = look.line; ag.fillStyle = look.line; ag.lineWidth = look.lineW*2; glyphs(ag, 'stroke'); }
+  if (look.line){
+    const [nc, ng] = layer(); ng.strokeStyle = look.line; ng.lineWidth = look.lineW*2; glyphs(ng, 'stroke');
+    if (inner){ ng.setTransform(1, 0, 0, 1, 0, 0); ng.globalCompositeOperation = 'destination-out'; ng.drawImage(inner, 0, 0); }
+    ag.drawImage(nc, 0, 0);
+  }
+  ag.translate(pad, pad); ag.lineJoin = 'round';
   // The chenille: colour, then loops, then darker edges and a soft highlight so it looks plush.
-  const [gm, gg] = layer(); gg.fillStyle = '#fff'; glyphs(gg, 'fill');
   const [cc, cg] = layer();
   cg.fillStyle = look.fill; glyphs(cg, 'fill');
   cg.setTransform(1, 0, 0, 1, 0, 0); cg.globalCompositeOperation = 'source-atop';
@@ -245,6 +285,7 @@ function buildChenille(W, H, pad, glyphs, look){
   cg.fillStyle = hl; cg.fillRect(0, 0, W, H);
   // The overlay blend above also tinted the empty space round the letters: cut back to them.
   cg.globalCompositeOperation = 'destination-in'; cg.drawImage(gm, 0, 0);
+  if (inner){ cg.globalCompositeOperation = 'destination-out'; cg.drawImage(inner, 0, 0); }
   ag.setTransform(1, 0, 0, 1, 0, 0); ag.drawImage(cc, 0, 0);
   return { art:ac, mask:bc };
 }
@@ -279,7 +320,7 @@ function drawChenilleText(ctx, d, text, x, y, w, h, o){
     g.font = `${fs}px Graduate, Rockwell, serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
     how === 'fill' ? g.fillText(text, w/2, h/2 + fs*0.04) : g.strokeText(text, w/2, h/2 + fs*0.04);
   };
-  const look = { fill:d.fg, backing:d.backing || '#F2C21E', backingW:fs*0.085, line:d.border, lineW:fs*0.022, edgeShade:fs*0.035, loop:Math.max(0.15, fs/220) };
+  const look = { fill:d.fg, backing:d.backing || '#C8283A', backingW:fs*0.075, line:d.border, lineW:fs*0.018, edgeShade:fs*0.035, loop:Math.max(0.15, fs/220) };
   drawChenille(ctx, ['chen', text, d.fg, d.border, d.backing, Math.round(fs)].join(), x, y, w, h, glyphs, look, o);
 }
 const LEAF = [[0,-1],[.12,-.74],[.3,-.82],[.22,-.38],[.48,-.6],[.55,-.48],[.85,-.55],[.75,-.28],[.95,-.2],[.55,.1],[.62,.25],[.08,.2],[.06,.62],[-.06,.62],[-.08,.2],[-.62,.25],[-.55,.1],[-.95,-.2],[-.75,-.28],[-.85,-.55],[-.55,-.48],[-.48,-.6],[-.22,-.38],[-.3,-.82],[-.12,-.74]];
@@ -467,30 +508,37 @@ function drawFlap(ctx, s, pts, k, jc, fold){
 function drawZone(ctx, s, z, k, jc){
   const x = z.x*k, y = z.y*k, zw = z.w*k, zh = z.h*k;
   if (z.kind === 'band'){
-    // Leather band, gathered into soft puckers, with a stitch line along each edge.
+    // A flat leather band (not gathered), a seam along its top, and a stitch line along each edge.
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.fillRect(x, y, zw, zh);
-    const step = 5*k;
-    for (let xx = x; xx < x + zw; xx += step){
-      const g = ctx.createLinearGradient(xx, 0, xx + step, 0);
-      g.addColorStop(0, 'rgba(0,0,0,.05)'); g.addColorStop(.45, 'rgba(255,255,255,.04)'); g.addColorStop(1, 'rgba(0,0,0,.05)');
-      ctx.fillStyle = g; ctx.fillRect(xx, y, step, zh);
-    }
+    ctx.fillStyle = 'rgba(0,0,0,.05)'; ctx.fillRect(x, y, zw, zh);
     const sh = ctx.createLinearGradient(0, y, 0, y + k*1.2); sh.addColorStop(0, 'rgba(0,0,0,.35)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = sh; ctx.fillRect(x, y, zw, k*1.2);
     stitchStyle(ctx, jc, k);
     ctx.beginPath(); ctx.moveTo(x, y + k*0.5); ctx.lineTo(x + zw, y + k*0.5); ctx.moveTo(x, y + zh - k*0.5); ctx.lineTo(x + zw, y + zh - k*0.5); ctx.stroke();
     ctx.restore();
-    for (const sx of z.snaps || []) drawSnap(ctx, sx*k, y + zh/2, k*0.65);
+    for (const [sx, f] of z.snaps || []) drawSnap(ctx, sx*k, y + zh*f, k*0.6);
   } else if (z.kind === 'opening'){
-    // The two front edges, each topstitched, with a shadow where they hang apart.
+    // The open zipper: on each front edge, metal teeth at the very edge, then the tape,
+    // then a line of topstitching on the leather. (The jacket's worn open, so the halves part.)
     const cx = x + zw/2;
     ctx.save();
-    const g = ctx.createLinearGradient(cx - k*0.8, 0, cx + k*0.8, 0);
-    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(.5, 'rgba(0,0,0,.5)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g; ctx.fillRect(cx - k*0.8, y, k*1.6, zh);
+    const g = ctx.createLinearGradient(cx - k*0.4, 0, cx + k*0.4, 0);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(.5, 'rgba(0,0,0,.55)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(cx - k*0.4, y, k*0.8, zh);
+    for (const sd of [-1, 1]){
+      const edge = cx + sd*k*0.05;
+      ctx.fillStyle = '#6E5B44'; ctx.fillRect(Math.min(edge, edge + sd*k*1.3), y, k*1.3, zh);           // tape
+      ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(Math.min(edge + sd*k*1.25, edge + sd*k*1.45), y, k*0.2, zh);
+      const tw = k*0.55, step = k*0.32;
+      for (let yy = y + (sd > 0 ? step/2 : 0); yy < y + zh; yy += step){                               // teeth
+        const tx = sd < 0 ? edge - tw : edge;
+        const tg = ctx.createLinearGradient(0, yy, 0, yy + step*0.55);
+        tg.addColorStop(0, '#E9ECEF'); tg.addColorStop(.6, '#9DA3AB'); tg.addColorStop(1, '#5E636B');
+        ctx.fillStyle = tg; ctx.fillRect(tx, yy, tw, step*0.55);
+      }
+    }
     stitchStyle(ctx, jc, k);
-    ctx.beginPath(); for (const ex of [cx - k*0.9, cx + k*0.9]){ ctx.moveTo(ex, y); ctx.lineTo(ex, y + zh); } ctx.stroke();
+    ctx.beginPath(); for (const ex of [cx - k*1.75, cx + k*1.75]){ ctx.moveTo(ex, y); ctx.lineTo(ex, y + zh); } ctx.stroke();
     ctx.restore();
   } else if (z.kind === 'lapel'){
     // Edge 1 runs down the front edge (the fold), so it gets no stitching.
@@ -514,7 +562,8 @@ function zoneLabel(ctx, s, z, k){
   const x = z.x*k, y = z.y*k, zw = z.w*k, zh = z.h*k;
   ctx.save(); ctx.fillStyle = 'rgba(255,255,255,.78)'; ctx.font = `600 ${clamp(k*1.3, 9, 13)}px Archivo, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  if (z.kind === 'opening'){ ctx.translate(x + zw/2, y + zh*0.55); ctx.rotate(-Math.PI/2); ctx.fillText(z.label, 0, 0); }
+  if (z.kind === 'opening'){ ctx.translate(x + zw/2, y + zh*0.45); ctx.rotate(-Math.PI/2); ctx.fillText(z.label, 0, 0); }
+  else if (z.kind === 'vent') return ctx.restore();
   else if (z.kind === 'pocket'){ ctx.translate((z.top[0] + z.bottom[0])/2*k + k*1.7, (z.top[1] + z.bottom[1])/2*k); ctx.rotate(-Math.PI/2); ctx.fillText(z.label, 0, 0); }
   else if (z.kind === 'lapel'){ const e = z.outline[1]; ctx.fillText(z.label, (e[0] + z.side*2.6)*k, (z.y + z.h*0.42)*k); }
   else if (z.kind === 'cutaway'){ ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillText(z.label, x + zw/2, y + Math.min(zh*0.4, k*1.6)); }

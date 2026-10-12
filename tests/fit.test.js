@@ -26,17 +26,17 @@ describe('conflicts', () => {
   beforeEach(() => load({ placed:[] }));
 
   it('is empty for a single bar in open space', () => {
-    load({ placed:[bar('a', 2, 5)] });
+    load({ placed:[bar('a', 2, 25)] });
     expect(conflicts('front').size).toBe(0);
   });
   it('flags both bars when they overlap', () => {
-    load({ placed:[bar('a', 2, 5), bar('b', 4, 6)] });
+    load({ placed:[bar('a', 2, 25), bar('b', 4, 26)] });
     const bad = conflicts('front');
     expect(bad.get('a')).toBe('Overlaps Box');
     expect(bad.get('b')).toBe('Overlaps Box');
   });
   it('flags bars closer than the minimum gap', () => {
-    load({ placed:[bar('a', 2, 5), bar('b', 2, 8.1)] }); // 0.1 cm apart, gap is 0.3
+    load({ placed:[bar('a', 2, 25), bar('b', 2, 28.1)] }); // 0.1 cm apart, gap is 0.3
     expect(conflicts('front').get('b')).toMatch(/^Closer than 0.3 cm/);
   });
   it('flags a bar hanging off the edge', () => {
@@ -44,10 +44,10 @@ describe('conflicts', () => {
     load({ placed:[bar('a', w - 5, 5)] });
     expect(conflicts('front').get('a')).toBe('Hangs off the edge of the panel');
   });
-  it('flags a bar covering the front opening', () => {
+  it('flags a bar covering the zipper', () => {
     const zip = noGoZones('front').find(z => z.kind === 'opening');
-    load({ placed:[bar('a', zip.x - 5, 12)] });
-    expect(conflicts('front').get('a')).toBe('Covers the front opening');
+    load({ placed:[bar('a', zip.x - 5, 40)] }); // below the lapels
+    expect(conflicts('front').get('a')).toBe('Covers the zipper');
   });
   it('flags a bar over a pocket', () => {
     const pk = noGoZones('front').find(z => z.kind === 'pocket');
@@ -120,17 +120,22 @@ describe('findSpot speed', () => {
 });
 
 describe('settle', () => {
-  it('moves a bar dropped on the cuff to the nearest spot it can be sewn', () => {
+  it('lets a bar sit on the cuff band (they do get sewn there)', () => {
     load({ placed:[] });
-    const p = { uid:'a', item:'bar-blank', section:'leftSleeve', x:13, y:DEFAULT_MEAS_SLEEVE - 5, rot:0, text:null }; // on the cuff, inside the panel
+    const p = { uid:'a', item:'bar-blank', section:'leftSleeve', x:13, y:DEFAULT_MEAS_SLEEVE - 5, rot:0, text:null };
     state.placed.push(p);
-    const why = settle(p);
-    expect(why.label).toBe('Cuff');
+    expect(settle(p)).toBeNull();
     expect(conflicts('leftSleeve').size).toBe(0);
-    expect(p.y + 4.1).toBeLessThanOrEqual(DEFAULT_MEAS_SLEEVE - 6 + 1e-6); // above the 6 cm cuff
+  });
+  it('moves a bar off the snapped cuff vent by the underarm', () => {
+    load({ placed:[] });
+    const p = { uid:'a', item:'bar-blank', section:'leftSleeve', x:0, y:DEFAULT_MEAS_SLEEVE - 5, rot:0, text:null };
+    state.placed.push(p);
+    expect(settle(p).label).toBe('Cuff snaps');
+    expect(conflicts('leftSleeve').size).toBe(0);
   });
   it('leaves a patch alone when it only overlaps another patch', () => {
-    load({ placed:[bar('a', 2, 5), bar('b', 4, 6)] });
+    load({ placed:[bar('a', 2, 25), bar('b', 4, 26)] });
     expect(settle(state.placed[1])).toBeNull();
     expect(state.placed[1].x).toBe(4);
   });

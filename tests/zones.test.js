@@ -16,9 +16,10 @@ describe('jacketZones', () => {
     expect(kinds('front')).toEqual(['band', 'cutaway', 'lapel', 'lapel', 'opening', 'pocket', 'pocket']);
   });
   it('puts the collar and waistband on the back', () => expect(kinds('back')).toEqual(['band', 'collar']));
-  it('cuts both sides of each sleeve cap away, and has a cuff', () => {
-    expect(kinds('leftSleeve')).toEqual(['band', 'cutaway', 'cutaway']);
-    expect(kinds('rightSleeve')).toEqual(['band', 'cutaway', 'cutaway']);
+  it('cuts both sides of each sleeve cap away, and has a sewable cuff with a snapped vent', () => {
+    expect(kinds('leftSleeve')).toEqual(['band', 'cutaway', 'cutaway', 'vent', 'vent']);
+    expect(kinds('rightSleeve')).toEqual(['band', 'cutaway', 'cutaway', 'vent', 'vent']);
+    expect(jacketZones('leftSleeve', DEFAULT_MEAS).find(z => z.kind === 'band').sewable).toBe(true);
   });
   it('gives every outline zone a bounding box that holds it', () => {
     for (const s of ['front', 'back', 'leftSleeve', 'rightSleeve']) for (const z of jacketZones(s, DEFAULT_MEAS)) if (z.outline)

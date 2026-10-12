@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { DEFAULT_MEAS } from '../src/config.js';
 
 // Collects uncaught errors and console errors so any test can assert there were none.
 test.beforeEach(async ({ page }, info) => {
@@ -44,8 +45,9 @@ test('adding, overlapping, undoing and reloading a plan', async ({ page }, info)
 
   // Dragging on the mat moves the selected bar.
   const box = await page.locator('#mat').boundingBox();
-  const k = Math.max(1, Math.min((box.width - 84) / 55, (box.height - 84) / 68)); // default front is 55 × 68 cm
-  const ox = Math.round((box.width - 55 * k) / 2), oy = Math.round((box.height - 68 * k) / 2);
+  const FW = DEFAULT_MEAS.chest / 2, FH = DEFAULT_MEAS.length; // the default front panel, in cm
+  const k = Math.max(1, Math.min((box.width - 84) / FW, (box.height - 84) / FH));
+  const ox = Math.round((box.width - FW * k) / 2), oy = Math.round((box.height - FH * k) / 2);
   const cx = box.x + ox + (+x2 + 5) * k, cy = box.y + oy + (+y2 + 1.25) * k;
   await page.mouse.move(cx, cy);
   await page.mouse.down();

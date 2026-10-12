@@ -15,7 +15,7 @@ import { $, clamp } from './util.js';
 import { state, sectionSize, noGoZones, getDef, dims, textOf } from './state.js';
 import { drawPanel, drawItem } from './draw.js';
 import { heightLayer, leatherLayer, grainCanvas } from './leather.js';
-import { buildJacket, applyFolds } from './model.js';
+import { buildJacket, applyFolds, VENT } from './model.js';
 import pkg from '../package.json';
 import { hitTest } from './editor2d.js';
 import { setSection, select } from './panels.js';
@@ -161,6 +161,7 @@ export function build3D(){
   });
   const plainMat = new THREE.MeshPhysicalMaterial({ map:V.swatch, bumpMap:V.grain, bumpScale:LOOK.bump*0.6, roughness:LOOK.roughness, clearcoat:LOOK.clearcoat, clearcoatRoughness:LOOK.clearcoatRoughness, side:THREE.DoubleSide });
   const liningMat = new THREE.MeshStandardMaterial({ color:lining, roughness:LOOK.liningRoughness, side:THREE.BackSide });
+  const zipMat = new THREE.MeshStandardMaterial({ color:0xb8bdc4, metalness:0.85, roughness:0.35, side:THREE.DoubleSide });
   const model = new THREE.Group(); model.scale.setScalar(CM); V.root.add(model);
   const add = (geo, mat, section) => {
     const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true;
@@ -176,9 +177,15 @@ export function build3D(){
     // Free edges get thickness: hems and cuffs (the bottom row), and the two front edges.
     const bottom = Array.from({ length:cols + 1 }, (_, i) => [last, i]);
     add(rowsGeometry(edgeRows(g, bottom, [j => j - 1, i => i], t)), plainMat);
+    if (g.section === 'leftSleeve' || g.section === 'rightSleeve'){
+      // The open cuff vent: both edges get thickness, from where the slit starts to the cuff edge.
+      const j0 = Math.max(0, Math.floor(g.NV*(1 - VENT.len/state.meas.sleeve)) - 1), rows = Array.from({ length:last - j0 + 1 }, (_, k) => k + j0);
+      add(rowsGeometry(edgeRows(g, rows.map(j => [j, 0]), [j => j, () => 1], t)), plainMat);
+      add(rowsGeometry(edgeRows(g, rows.map(j => [j, cols]), [j => j, () => cols - 1], t)), plainMat);
+    }
     if (g.section === 'front'){
       const ei = g.u1 === 0.5 ? cols : 0, rows = Array.from({ length:last + 1 }, (_, j) => [j, ei]);
-      add(rowsGeometry(edgeRows(g, rows, [j => j, i => i === 0 ? 1 : i - 1], t)), plainMat);
+      add(rowsGeometry(edgeRows(g, rows, [j => j, i => i === 0 ? 1 : i - 1], t)), zipMat);
     }
   }
   add(rowsGeometry(J.collar), plainMat);
@@ -282,7 +289,9 @@ export function focusSection(s){
 function place(){
   V.root.rotation.set(V.pitch, V.yaw, 0, 'XYZ');
   const d = V.baseDist*V.zoom/Math.min(1, V.camera.aspect*1.15);
-  V.camera.position.set(0, d*0.04, d); V.camera.lookAt(0, 0, 0);
+  // `look` (metres, screen-aligned) shifts the view; only screenshot scripts set it for now.
+  const [lx, ly] = V.look || [0, 0];
+  V.camera.position.set(lx, ly + d*0.04, d); V.camera.lookAt(lx, ly, 0);
 }
 function loop3D(){
   requestAnimationFrame(loop3D);

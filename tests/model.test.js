@@ -40,7 +40,7 @@ describe('buildJacket', () => {
     expect(R.pos[j][0][0] - L.pos[j][L.NU][0]).toBeGreaterThan(3); // cm apart at the chest
   });
   it('grows with the chest measurement', () => {
-    const big = buildJacket({ ...DEFAULT_MEAS, chest:130 }), width = jk => Math.max(...jk.panels[2].pos.flat().map(p => p[0])) - Math.min(...jk.panels[2].pos.flat().map(p => p[0]));
+    const big = buildJacket({ ...DEFAULT_MEAS, chest:DEFAULT_MEAS.chest*1.2 }), width = jk => Math.max(...jk.panels[2].pos.flat().map(p => p[0])) - Math.min(...jk.panels[2].pos.flat().map(p => p[0]));
     expect(width(big)).toBeGreaterThan(width(J)*1.12);
   });
 });
@@ -49,7 +49,7 @@ describe('cutaways', () => {
   const cut = cutaways(DEFAULT_MEAS), at = (prof, x) => prof.reduce((best, p) => Math.abs(p[0] - x) < Math.abs(best[0] - x) ? p : best)[1];
   it('cuts the neckline out of the top of the front', () => {
     expect(at(cut.front, DEFAULT_MEAS.chest/4)).toBeGreaterThan(3);
-    expect(at(cut.front, 0)).toBeLessThan(1);
+    expect(at(cut.front, 0)).toBeLessThan(2); // only a sliver at the armhole corner
   });
   it('curves the sleeve cap away toward the underarm, not on the outer side', () => {
     for (const s of ['leftSleeve', 'rightSleeve']){
