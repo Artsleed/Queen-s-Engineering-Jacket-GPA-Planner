@@ -8,6 +8,7 @@ import { leatherLayer, fillGrain, grainCanvas } from './leather.js';
 import { seeded } from './surface.js';
 import { arcGeom, bandOf } from './shapes.js';
 import { dyedChenille } from './config.js';
+import { flagUrl } from './flags.js';
 
 // Photos load asynchronously; whoever owns redrawing registers a callback here.
 let onImageLoad = () => {};
@@ -364,6 +365,11 @@ function drawFlag(ctx, f, x, y, w, h){
   if (f.type === 'h'){ const n = c.length; c.forEach((col,i) => { ctx.fillStyle = col; ctx.fillRect(x, y + h*i/n - 0.5, w, h/n + 1); }); }
   else if (f.type === 'v'){ const n = c.length; c.forEach((col,i) => { ctx.fillStyle = col; ctx.fillRect(x + w*i/n - 0.5, y, w/n + 1, h); }); }
   else if (f.type === 'disc'){ ctx.fillStyle = c[0]; ctx.fillRect(x, y, w, h); ctx.fillStyle = c[1]; ctx.beginPath(); ctx.arc(x+w/2, y+h/2, h*0.3, 0, Math.PI*2); ctx.fill(); }
+  else if (f.type === 'svg'){
+    // Cover-fit: the 4:3 artwork fills the (4:3) patch; a resized one is trimmed, not stretched.
+    const im = getImg(flagUrl(f.code));
+    if (im){ const s = Math.max(w/im.naturalWidth, h/im.naturalHeight), iw = im.naturalWidth*s, ih = im.naturalHeight*s; ctx.drawImage(im, x + (w-iw)/2, y + (h-ih)/2, iw, ih); }
+  }
   else if (f.type === 'canada'){
     ctx.fillStyle = '#D52B1E'; ctx.fillRect(x, y, w, h);
     ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + w*0.25, y, w*0.5, h);

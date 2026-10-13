@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { setState, normalize, rebuildCatalog, sectionSize, noGoZones, state, getDef } from '../src/state.js';
+import { setState, normalize, rebuildCatalog, sectionSize, noGoZones, state, getDef, isFixed } from '../src/state.js';
 import { localOutline } from '../src/shapes.js';
 import { boxesClash, conflicts, findSpot, settle } from '../src/fit.js';
 import { DEFAULT_MEAS } from '../src/config.js';
@@ -7,9 +7,12 @@ const DEFAULT_MEAS_SLEEVE = DEFAULT_MEAS.sleeve;
 
 // Loads a plan the same way the app does when it opens a saved one.
 // Every plan includes a plain 12 × 3 cm box item, so these tests don't depend on bar shapes.
+// The traditional pieces (which every loaded plan gets) are taken off, for a bare jacket.
 const BOX = { id:'c-box', cat:'bar', name:'Box', text:'', w:12, h:3, shape:'rect' };
 function load(plan){
-  setState(normalize({ v:2, items:[BOX], ...plan }));
+  const s = normalize({ v:4, items:[BOX], ...plan });
+  s.placed = s.placed.filter(p => !isFixed(p));
+  setState(s);
   rebuildCatalog();
 }
 const bar = (uid, x, y, section = 'front') => ({ uid, item:'c-box', section, x, y, rot:0 });

@@ -1,30 +1,15 @@
-/* ===================== Export, import, pictures ===================== */
+/* ===================== Pictures ===================== */
 import { SECTION_LABEL } from './config.js';
 import { $, r1 } from './util.js';
-import { state, current, sel, setState, setSel, normalize, rebuildCatalog, sectionSize } from './state.js';
+import { current, sel, setSel, sectionSize } from './state.js';
 import { drawPanel } from './draw.js';
 import { V, render3DNow } from './jacket3d.js';
-import { buildSelect } from './catalog-ui.js';
-import { pushHistory, commit, toast } from './pipeline.js';
 
 function saveFile(filename, data){
   const blob = data instanceof Blob ? data : new Blob([data]);
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-$('#btnExport').onclick = () => saveFile('gpa-plan.json', new Blob([JSON.stringify(state, null, 2)], { type:'application/json' }));
-$('#btnImport').onclick = () => $('#importFile').click();
-$('#importFile').addEventListener('change', async () => {
-  const f = $('#importFile').files[0]; if (!f) return;
-  try {
-    const raw = JSON.parse(await f.text());
-    if (!raw || !Array.isArray(raw.placed)) throw new Error('bad');
-    pushHistory(); const keepT = Date.now();
-    setState(normalize(raw)); state.updatedAt = keepT; setSel(null);
-    rebuildCatalog(); buildSelect(); commit(); toast('Plan imported.', true);
-  } catch (e){ toast("That file isn't a GPA plan. Export one from here first."); }
-  $('#importFile').value = '';
-});
 function canvasToBlob(c){ return new Promise(r => c.toBlob(r, 'image/png')); }
 $('#btnSavePic').onclick = async () => {
   const k = 20, { w, h } = sectionSize(current), pad = 40;

@@ -1,188 +1,160 @@
 /* ===================== UI: catalog & maker ===================== */
-import { BAR, SECTION_LABEL } from './config.js';
-import { GROUPS, GROUP_LABEL, groupOf } from './catalog.js';
-import { $, clamp, r1, newId, rgbToHex } from './util.js';
-import { state, catMap, current, sel, setSel, getDef, isCustom, isEditedPreset, rebuildCatalog, sectionSize } from './state.js';
+import { BAR, FLAG, SECTION_LABEL } from './config.js';
+import { GROUPS, groupOf } from './catalog.js';
+import { $, r1, newId, rgbToHex } from './util.js';
+import { state, catMap, current, sel, setSel, getDef, isEditedPreset, rebuildCatalog, sectionSize } from './state.js';
 import { findSpot, conflicts } from './fit.js';
 import { localOutline } from './shapes.js';
 import { traditionalSpots } from './layout.js';
-import { setSection } from './panels.js';
+import { setSection, select, renderInspector } from './panels.js';
 import { drawItem } from './draw.js';
 import { pushHistory, commit, toast } from './pipeline.js';
 
 // The picker: a search box and a category filter narrow down a grouped list.
 // There are ~800 items, too many to scroll through in a plain dropdown.
-const pickable = () => [...catMap.values()].filter(d => !d.missing);
+const pickable = () => [...catMap.values()].filter(d => !d.missing && PICKER.has(groupOf(d)));
+const PICKER = new Set(GROUPS.map(([g]) => g));
 const matches = (d, q) => !q || d.name.toLowerCase().includes(q);
 const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity:'base', numeric:true });
 
+// The list is folders, one per group. One folder is open at a time (opening another closes
+// it); while searching, every folder with a match is open, so all the results show.
+let chosenId = null, openGroup = null;
 export function buildSelect(keep){
-  const s = $('#itemSelect'), cs = $('#itemCat'); keep = keep || s.value;
+  if (keep){ chosenId = keep; const d = getDef(keep); if (d) openGroup = groupOf(d); }
   const q = $('#itemSearch').value.trim().toLowerCase(), all = pickable();
   const groups = new Map(GROUPS.map(([g]) => [g, []]));
   for (const d of all) groups.get(groupOf(d)).push(d);
-
-  // Category options, with counts. Empty groups are left out.
-  const cat = cs.value || 'all'; cs.innerHTML = '';
-  cs.append(new Option(`Everything (${all.length})`, 'all'));
-  for (const [g, label] of GROUPS) if (groups.get(g).length) cs.append(new Option(`${label} (${groups.get(g).length})`, g));
-  cs.value = [...cs.options].some(o => o.value === cat) ? cat : 'all';
-
-  s.innerHTML = ''; let shown = 0;
+  const L = $('#itemList'); L.innerHTML = ''; let shown = 0;
   for (const [g, label] of GROUPS){
-    if (cs.value !== 'all' && cs.value !== g) continue;
     const list = groups.get(g).filter(d => matches(d, q)).sort(byName);
     if (!list.length) continue;
-    const og = document.createElement('optgroup'); og.label = label;
-    for (const d of list) og.append(new Option(d.name + (isEditedPreset(d.id) ? ' (edited)' : ''), d.id));
-    s.append(og); shown += list.length;
+    const open = q ? true : openGroup === g;
+    const box = document.createElement('div'); box.className = 'grp';
+    const h = document.createElement('button'); h.type = 'button'; h.className = 'grp-h'; h.dataset.g = g; h.dataset.n = list.length;
+    h.setAttribute('aria-expanded', String(open));
+    h.innerHTML = '<span class="grp-name"></span><span class="grp-n"></span>';
+    h.querySelector('.grp-name').textContent = label; h.querySelector('.grp-n').textContent = list.length;
+    h.onclick = () => { if (q) return; openGroup = openGroup === g ? null : g; buildSelect(); L.querySelector(`.grp-h[data-g="${g}"]`)?.focus(); };
+    box.append(h);
+    if (open){
+      const items = document.createElement('div'); items.className = 'grp-items'; items.setAttribute('role', 'listbox'); items.setAttribute('aria-label', label);
+      for (const d of list){
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'item'; b.dataset.id = d.id;
+        b.setAttribute('role', 'option'); b.setAttribute('aria-selected', String(d.id === chosenId));
+        b.textContent = d.name + (isEditedPreset(d.id) ? ' (edited)' : '');
+        b.onclick = () => choose(d.id);
+        b.ondblclick = () => { choose(d.id); addChosen(); };
+        items.append(b);
+      }
+      box.append(items);
+    }
+    L.append(box); shown += list.length;
   }
-  $('#itemCount').textContent = shown ? `${shown} ${shown === 1 ? 'match' : 'matches'}` : 'Nothing matches. Try another word, or make your own.';
-  // With nothing chosen yet, start on a bar rather than a traditional piece (those are already on).
-  const ids = [...s.options].map(o => o.value), firstBar = ids.find(id => groupOf(getDef(id)) !== 'traditional');
-  s.value = ids.includes(keep) ? keep : (firstBar ?? ids[0] ?? '');
-  showChosen();
+  $('#itemCount').textContent = q ? (shown ? `${shown} ${shown === 1 ? 'match' : 'matches'}` : 'Nothing matches. Try another word, or make your own.') : '';
+  $('#itemCount').hidden = !q;
+  renderInspector(); // the right-hand panel shows the chosen item, unless a patch is selected
 }
-export function chosenDef(){ return getDef($('#itemSelect').value); }
-function showChosen(){
-  const d = getDef($('#itemSelect').value);
-  if (!d){
-    if (!$('#maker').hidden && maker.editing) closeMaker(false);
-    if ($('#maker').hidden){ for (const id of ['pvName', 'pvSize', 'pvCat', 'pvNote']) $('#' + id).textContent = ''; drawPreview(null); }
-    $('#btnAdd').disabled = true; $('#btnEditItem').hidden = true; $('#btnDeleteItem').hidden = true;
-    return;
-  }
-  $('#pvName').textContent = d.name;
-  $('#pvSize').textContent = `${r1(d.w)} × ${r1(d.h)} cm`;
-  $('#pvCat').textContent = GROUP_LABEL[groupOf(d)];
-  refreshAddLabel();
-  $('#pvNote').textContent = d.note || '';
-  $('#btnDeleteItem').textContent = isCustom(d.id) ? 'Delete item' : 'Reset to default';
-  $('#btnDeleteItem').hidden = !isCustom(d.id) && !isEditedPreset(d.id);
-  $('#btnEditItem').hidden = false; $('#btnAdd').disabled = false;
-  if (!$('#maker').hidden && maker.editing !== d.id) closeMaker(false);
-  drawPreview(d);
+export function chosenDef(){ return chosenId ? getDef(chosenId) : null; }
+// Choosing from the list shows that item in the right-hand panel (dropping any selected patch).
+function choose(id){
+  chosenId = id;
+  for (const b of $('#itemList').querySelectorAll('.item')) b.setAttribute('aria-selected', String(b.dataset.id === id));
+  if (makerOpen()) closeMaker(false);
+  if (sel) select(null); else renderInspector();
 }
-export function drawPreview(d){
+export function drawPreview(d, text = d && d.text){
   const c = $('#itemPreview'), r = c.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
   c.width = Math.max(1, Math.round(r.width*dpr)); c.height = Math.max(1, Math.round(r.height*dpr));
   const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = '#2E5B48'; ctx.fillRect(0, 0, r.width, r.height);
-  ctx.fillStyle = state.jacket.color; ctx.fillRect(14, 14, r.width - 28, r.height - 28);
+  // Margins shrink with the preview (it's short on small laptop screens).
+  const m = Math.min(14, r.height*0.1), pad = Math.min(28, r.height*0.15);
+  ctx.fillStyle = state.jacket.color; ctx.fillRect(m, m, r.width - 2*m, r.height - 2*m);
   if (!d) return;
-  const k = Math.min((r.width - 56)/d.w, (r.height - 56)/d.h, 26);
-  drawItem(ctx, d, d.text, (r.width - d.w*k)/2, (r.height - d.h*k)/2, d.w*k, d.h*k);
+  const k = Math.max(0.1, Math.min((r.width - 2*(m + pad))/d.w, (r.height - 2*(m + pad))/d.h, 26));
+  drawItem(ctx, d, text, (r.width - d.w*k)/2, (r.height - d.h*k)/2, d.w*k, d.h*k);
 }
-$('#itemSelect').addEventListener('change', showChosen);
-$('#itemCat').addEventListener('change', () => buildSelect());
 $('#itemSearch').addEventListener('input', () => buildSelect());
-// Enter adds the highlighted item; Down arrow moves from the search box into the list.
+// Up and down move through the folders and items; Enter adds the focused item.
+const focusables = () => [...$('#itemList').querySelectorAll('.grp-h, .item')];
 $('#itemSearch').addEventListener('keydown', e => {
-  if (e.key === 'ArrowDown'){ e.preventDefault(); $('#itemSelect').focus(); }
-  else if (e.key === 'Enter'){ e.preventDefault(); $('#btnAdd').click(); }
+  if (e.key === 'ArrowDown'){ e.preventDefault(); (focusables().find(b => b.classList.contains('item')) || focusables()[0])?.focus(); }
+  else if (e.key === 'Enter'){ e.preventDefault(); const first = $('#itemList .item'); if (first){ choose(first.dataset.id); addChosen(); } }
 });
-$('#itemSelect').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); $('#btnAdd').click(); } });
-$('#itemSelect').addEventListener('dblclick', e => { if (e.target.tagName === 'OPTION') $('#btnAdd').click(); });
+$('#itemList').addEventListener('keydown', e => {
+  const f = focusables(), i = f.indexOf(document.activeElement);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+    e.preventDefault();
+    if (e.key === 'ArrowUp' && i <= 0) $('#itemSearch').focus(); else f[Math.max(0, Math.min(f.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))]?.focus();
+  } else if (e.key === 'Enter' && document.activeElement?.classList.contains('item')){ e.preventDefault(); choose(document.activeElement.dataset.id); addChosen(); }
+});
 $('#btnMake').onclick = () => openMaker(null);
 
-const maker = { editing:null, photo:null };
+// "Make your own": a new item from a kind, a shape, a name, text and colours. Its size comes
+// from the shape (the real size of that kind of piece), not from the user.
+const maker = { flagKeep:null };
 const mk = id => $('#' + id);
-function openMaker(def){
-  maker.editing = def ? def.id : null;
-  const d = def || { cat:'bar', name:'', text:'', ...BAR, note:'' };
-  $('#makerTitle').textContent = def ? `Edit ${def.name}` : 'Make your own';
-  mk('mkCat').value = d.cat; mk('mkShape').value = d.shape || 'rect'; mk('mkName').value = d.name; mk('mkText').value = d.text || '';
-  mk('mkW').value = d.w; mk('mkH').value = d.h; mk('mkBg').value = rgbToHex(d.bg || '#ffffff'); mk('mkFg').value = rgbToHex(d.fg || '#000000'); mk('mkBorder').value = rgbToHex(d.border || d.fg || '#000000');
-  mk('mkNote').value = d.note || '';
-  const f = d.flag || {}, fc = f.colors || ['#D52B1E', '#FFFFFF', '#D52B1E'];
-  mk('mkFlagDir').value = (f.type === 'h' || f.type === 'v') ? f.type : '';
-  mk('mkFlagN').value = String(fc.length === 2 ? 2 : 3);
-  mk('mkF1').value = rgbToHex(fc[0] || '#D52B1E'); mk('mkF2').value = rgbToHex(fc[1] || '#FFFFFF'); mk('mkF3').value = rgbToHex(fc[2] || '#D52B1E');
-  maker.flagKeep = (f.type === 'canada' || f.type === 'disc') ? f : null;
-  maker.photo = d.img || null; mk('mkPhoto').value = '';
-  $('#maker').hidden = false; $('#btnEditItem').hidden = true;
-  if (!def){ $('#pvName').textContent = 'New item'; $('#pvSize').textContent = ''; $('#pvCat').textContent = ''; $('#pvNote').textContent = ''; $('#btnDeleteItem').hidden = true; $('#btnAdd').disabled = true; }
+export const makerOpen = () => !$('#maker').hidden;
+const SHAPE_SIZE = {
+  arc:{ w:BAR.w, h:BAR.h },        // a standard bar
+  scroll:{ w:11.4, h:3.8 },        // like the mottos
+  shield:{ w:6.6, h:9.5 },         // like the pass crest
+  rect:{ w:8, h:5 }, round:{ w:7, h:6 }, circle:{ w:7, h:7 }, text:{ w:10, h:3 },
+};
+const sizeFor = (cat, shape) => cat === 'flag' && shape === 'rect' ? { w:FLAG.w, h:FLAG.h } : SHAPE_SIZE[shape] || SHAPE_SIZE.rect;
+function openMaker(){
+  const d = { cat:'bar', name:'', text:'', ...BAR };
+  $('#makerTitle').textContent = 'Make your own';
+  mk('mkCat').value = d.cat; mk('mkShape').value = d.shape; mk('mkName').value = ''; mk('mkText').value = '';
+  mk('mkBg').value = rgbToHex(d.bg); mk('mkFg').value = rgbToHex(d.fg); mk('mkBorder').value = rgbToHex(d.border);
+  mk('mkFlagDir').value = ''; mk('mkFlagN').value = '3';
+  mk('mkF1').value = '#D52B1E'; mk('mkF2').value = '#FFFFFF'; mk('mkF3').value = '#D52B1E';
+  $('#maker').hidden = false;
+  if (sel) select(null); else renderInspector();
   syncMaker(); mk('mkName').focus();
 }
-function closeMaker(restore = true){
-  $('#maker').hidden = true; maker.editing = null; $('#btnEditItem').hidden = false;
-  if (restore) showChosen();
+export function closeMaker(restore = true){
+  $('#maker').hidden = true;
+  if (restore) renderInspector();
 }
 function readMaker(){
-  const dir = mk('mkFlagDir').value, n = +mk('mkFlagN').value;
-  let flag = null;
-  if (dir) flag = { type:dir, colors:[mk('mkF1').value, mk('mkF2').value, mk('mkF3').value].slice(0, n) };
-  else if (maker.flagKeep) flag = maker.flagKeep;
-  // Keep fields the form doesn't show (band thickness, lettering style, traditional spot).
-  const keep = maker.editing ? getDef(maker.editing) : {}, shape = mk('mkShape').value || keep.shape || 'rect', h = clamp(+mk('mkH').value || 1, 0.5, 60);
-  const extra = { font:keep.font, edge:keep.edge, trad:keep.trad };
-  if (shape === 'arc') extra.band = Math.min(keep.band ?? BAR.band, h);
-  for (const k of Object.keys(extra)) if (extra[k] === undefined) delete extra[k];
+  const dir = mk('mkFlagDir').value, n = +mk('mkFlagN').value, cat = mk('mkCat').value, shape = mk('mkShape').value || 'rect';
+  const flag = dir ? { type:dir, colors:[mk('mkF1').value, mk('mkF2').value, mk('mkF3').value].slice(0, n) } : null;
   return {
-    ...extra,
-    id: maker.editing || ('c-' + newId()),
-    cat: mk('mkCat').value, name: mk('mkName').value.trim() || 'Untitled', text: mk('mkText').value.trim(),
-    w: clamp(+mk('mkW').value || 1, 0.5, 60), h,
-    shape, bg: mk('mkBg').value, fg: mk('mkFg').value, border: mk('mkBorder').value,
-    note: mk('mkNote').value.trim(), flag, img: maker.photo || null,
+    ...sizeFor(cat, shape), ...(shape === 'arc' ? { band:BAR.band } : {}),
+    id:'c-' + newId(), cat, name:mk('mkName').value.trim() || 'Untitled', text:mk('mkText').value.trim(),
+    shape, bg:mk('mkBg').value, fg:mk('mkFg').value, border:mk('mkBorder').value, note:'', flag,
   };
 }
 export function syncMaker(){
   $('#flagOpts').hidden = mk('mkCat').value !== 'flag' && !mk('mkFlagDir').value;
   $('#mkF3wrap').hidden = mk('mkFlagN').value === '2';
-  $('#mkPhotoRow').hidden = !maker.photo;
   const d = readMaker(); drawPreview(d);
-  $('#pvSize').textContent = `${r1(d.w)} × ${r1(d.h)} cm`;
+  $('#makerTitle').textContent = `Make your own · ${r1(d.w)} × ${r1(d.h)} cm`;
 }
 $('#maker').addEventListener('input', syncMaker);
 $('#maker').addEventListener('change', syncMaker);
-mk('mkPhoto').addEventListener('change', async () => {
-  const f = mk('mkPhoto').files[0]; if (!f) return;
-  try { maker.photo = await shrinkImage(f, 240); syncMaker(); }
-  catch (e){ toast("That photo couldn't be read. Try a JPG or PNG."); }
-});
-mk('mkPhotoClear').onclick = () => { maker.photo = null; mk('mkPhoto').value = ''; syncMaker(); };
 mk('mkCancel').onclick = () => closeMaker(true);
 mk('mkSave').onclick = () => {
-  const d = readMaker(), wasEditing = !!maker.editing;
+  const d = readMaker();
   pushHistory();
-  const i = state.items.findIndex(x => x.id === d.id);
-  if (i >= 0) state.items[i] = d; else state.items.push(d);
+  state.items.push(d);
   rebuildCatalog(); closeMaker(false);
-  $('#itemSearch').value = ''; $('#itemCat').value = 'all'; buildSelect(d.id); // so the saved item is visible
-  toast(wasEditing ? 'Item saved.' : `Saved ${d.name}.`);
-  commit();
-};
-function shrinkImage(file, max){
-  return new Promise((res, rej) => {
-    const url = URL.createObjectURL(file), im = new Image();
-    im.onload = () => {
-      const s = Math.min(1, max/Math.max(im.width, im.height)), c = document.createElement('canvas');
-      c.width = Math.max(1, Math.round(im.width*s)); c.height = Math.max(1, Math.round(im.height*s));
-      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
-      res(file.type === 'image/png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.82));
-    };
-    im.onerror = rej; im.src = url;
-  });
-}
-$('#btnEditItem').onclick = () => { const d = chosenDef(); if (d) openMaker(d); };
-$('#btnDeleteItem').onclick = () => {
-  const d = chosenDef(); if (!d) return;
-  pushHistory();
-  state.items = state.items.filter(x => x.id !== d.id);
-  if (isCustom(d.id)){ state.placed = state.placed.filter(p => p.item !== d.id); if (sel && !state.placed.some(p => p.uid === sel)) setSel(null); }
-  rebuildCatalog(); buildSelect(isCustom(d.id) ? null : d.id);
-  toast(isCustom(d.id) ? `Deleted ${d.name}.` : `${d.name} is back to default.`, true);
+  $('#itemSearch').value = ''; buildSelect(d.id); // so the saved item is visible
+  toast(`Saved ${d.name}.`);
   commit();
 };
 // Traditional pieces go to their own spot (switching section), other items to the current section.
 const homeOf = d => d && d.trad ? traditionalSpots(state.meas, getDef)[d.id] : null;
 export function refreshAddLabel(){
+  const b = $('#btnAdd'); if (!b) return;
   const home = homeOf(chosenDef());
-  $('#btnAdd').textContent = `Add to ${SECTION_LABEL[home ? home.section : current].toLowerCase()}`;
+  b.textContent = `Add to ${SECTION_LABEL[home ? home.section : current].toLowerCase()}`;
 }
-$('#btnAdd').onclick = () => {
+export function addChosen(){
   const d = chosenDef(); if (!d) return;
+  if (makerOpen()) closeMaker(false);
   pushHistory();
   const home = homeOf(d);
   if (home && home.section !== current) setSection(home.section, true);
@@ -202,4 +174,4 @@ $('#btnAdd').onclick = () => {
   else { const { w } = sectionSize(current); p.x = r1(Math.max(0, (w - d.w)/2)); p.y = 2; toast(`No free space left on the ${SECTION_LABEL[current].toLowerCase()}. It's placed, but overlapping.`); }
   state.placed.push(p); setSel(p.uid);
   commit();
-};
+}

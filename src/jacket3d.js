@@ -291,24 +291,29 @@ export function renderTexture(s){
   flattenUnderPatches(s);
 }
 // Felt patches are stiff: the leather under them doesn't fold. Flatten the folds under each
-// patch (easing back in over a soft edge) whenever a section's patches change.
+// patch whenever a section's patches change. It follows the patches' real shapes (the mask
+// renderTexture just drew, blurred for a soft edge), not their boxes, which showed as
+// rectangles round each patch; QUEEN'S APPLIED SCIENCE is letters, not a 38 x 30 cm slab.
+const COVER_PX = 2; // px per cm for the coverage map
 function flattenUnderPatches(s){
   if (!V.panels) return;
-  const { w:W, h:H } = sectionSize(s), soft = 1.5;
-  const items = state.placed.filter(p => p.section === s).map(p => ({ ...dims(p), x:p.x, y:p.y })), key = JSON.stringify(items);
+  const { w:W, h:H } = sectionSize(s), T = V.tex[s];
+  const items = state.placed.filter(p => p.section === s).map(p => [p.item, p.x, p.y, p.rot, p.text]), key = JSON.stringify(items);
+  if (V.panels.every(P => P.g.section !== s || P.key === key)) return;
+  const cw = Math.max(1, Math.round(W*COVER_PX)), ch = Math.max(1, Math.round(H*COVER_PX));
+  const c = T.cover || (T.cover = document.createElement('canvas'));
+  if (c.width !== cw || c.height !== ch){ c.width = cw; c.height = ch; }
+  const cx = c.getContext('2d', { willReadFrequently:true });
+  cx.clearRect(0, 0, cw, ch); cx.filter = `blur(${COVER_PX*0.6}px)`;
+  if (T.mask.width) cx.drawImage(T.mask, 0, 0, cw, ch);
+  cx.filter = 'none';
+  const px = cx.getImageData(0, 0, cw, ch).data;
+  const cover = (x, y) => { const X = Math.min(cw - 1, Math.max(0, Math.round(x*COVER_PX))), Y = Math.min(ch - 1, Math.max(0, Math.round(y*COVER_PX))); return px[(Y*cw + X)*4 + 3]/255; };
   for (const P of V.panels){
     const g = P.g;
     if (g.section !== s || P.key === key) continue;
     P.key = key;
-    applyFolds(g, (j, i) => {
-      const x = (g.u0 + (g.u1 - g.u0)*i/g.NU)*W, y = H*j/g.NV;
-      let cover = 0;
-      for (const b of items){
-        const d = Math.hypot(Math.max(b.x - x, 0, x - b.x - b.w), Math.max(b.y - y, 0, y - b.y - b.h));
-        if (d < soft) cover = Math.max(cover, 1 - d/soft);
-      }
-      return 1 - 0.92*cover;
-    });
+    applyFolds(g, (j, i) => 1 - 0.92*Math.min(1, cover((g.u0 + (g.u1 - g.u0)*i/g.NU)*W, H*j/g.NV)*1.5));
     const pos = P.mesh.geometry.attributes.position, nor = P.mesh.geometry.attributes.normal, cols = g.NU + 1;
     for (let j = 0; j <= g.NV; j++) for (let i = 0; i <= g.NU; i++){ const k = j*cols + i; pos.setXYZ(k, ...g.pos[j][i]); nor.setXYZ(k, ...g.normal[j][i]); }
     pos.needsUpdate = nor.needsUpdate = true; P.mesh.geometry.computeBoundingSphere();

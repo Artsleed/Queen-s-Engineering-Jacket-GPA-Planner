@@ -60,23 +60,17 @@ export const PRESETS = [
   // Traditional pieces. New jackets start with these in their spots (see layout.js).
   { id:'trad-qas', cat:'patch', name:"QUEEN'S APPLIED SCIENCE", text:'', w:38.6, h:30.5, shape:'qas', ...BACK_LETTERS, trad:true, note:'Upper back. The letters are sewn on as one block.' },
   { id:'trad-uni-motto', cat:'patch', name:'University motto', text:'QUIS-DOLOR-CUI-DOLIUM', w:11.4, h:3.8, shape:'scroll', ...MOTTO, trad:true, note:'Top of the right sleeve.' },
-  { id:'patch-pass', cat:'patch', name:'Pass crest', text:'PASS', w:6.6, h:9.5, shape:'shield', bg:'#002452', fg:'#EAAA00', border:'#9D1939', trad:true, note:'Right sleeve, below the university motto, after first year. Upload a photo of yours to replace this stand-in.' },
+  { id:'patch-pass', cat:'patch', name:'Pass crest', text:'PASS', w:6.6, h:9.5, shape:'shield', bg:'#002452', fg:'#EAAA00', border:'#9D1939', trad:true, note:'Right sleeve, below the university motto, after first year.' },
   { id:'trad-year-motto', cat:'patch', name:'Year motto', text:YEAR_MOTTOS[froshYear()] || 'YEAR MOTTO', w:11.4, h:3.8, shape:'scroll', ...MOTTO, trad:true, note:"Top of the left sleeve. Type your year's motto in 'Text on this one'." },
+  // Size and look are guesses until Nathaniel measures his; a generic stand-in, not the real crest.
+  { id:'trad-year-crest', cat:'patch', name:'Year crest', text:'CREST', w:10, h:12, shape:'shield', bg:'#002452', fg:'#EAAA00', border:'#9D1939', trad:true, note:"Front, over the heart (wearer's left)." },
   { id:'patch-year', cat:'patch', name:'Year number', text:froshYear(), w:12, h:9, shape:'chenille', ...YEAR_DIGITS, trad:true, note:'Left sleeve, below the year motto: the last two digits of your graduating year.' },
   // Patches
   { id:'patch-dept', cat:'patch', name:'Department crest', text:'ECE', w:7, h:7, shape:'circle', bg:'#FFFFFF', fg:'#002452', border:'#002452', note:'' },
   { id:'patch-club', cat:'patch', name:'Club patch', text:'CLUB', w:7, h:6, shape:'round', bg:'#132039', fg:'#FFFFFF', border:'#EAAA00', note:'Stand-in for a team or club patch.' },
-  // Flags
-  { id:'flag-ca', cat:'flag', name:'Canada', text:'', w:8, h:4, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'canada'} },
-  { id:'flag-fr', cat:'flag', name:'France', text:'', w:7.5, h:5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'v', colors:['#0055A4','#FFFFFF','#EF4135']} },
-  { id:'flag-it', cat:'flag', name:'Italy', text:'', w:7.5, h:5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'v', colors:['#009246','#FFFFFF','#CE2B37']} },
-  { id:'flag-ie', cat:'flag', name:'Ireland', text:'', w:8, h:4, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'v', colors:['#169B62','#FFFFFF','#FF883E']} },
-  { id:'flag-de', cat:'flag', name:'Germany', text:'', w:7.5, h:4.5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'h', colors:['#000000','#DD0000','#FFCE00']} },
-  { id:'flag-nl', cat:'flag', name:'Netherlands', text:'', w:7.5, h:5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'h', colors:['#AE1C28','#FFFFFF','#21468B']} },
-  { id:'flag-ua', cat:'flag', name:'Ukraine', text:'', w:7.5, h:5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'h', colors:['#0057B7','#FFD700']} },
-  { id:'flag-ng', cat:'flag', name:'Nigeria', text:'', w:8, h:4, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'v', colors:['#008751','#FFFFFF','#008751']} },
-  { id:'flag-jp', cat:'flag', name:'Japan', text:'', w:7.5, h:5, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2', flag:{type:'disc', colors:['#FFFFFF','#BC002D']} },
 ];
+// Flag patches: 3.8 cm tall (Nathaniel), 4:3 like the artwork. Every country's flag is in flags.js.
+export const FLAG = { w:5.1, h:3.8, shape:'rect', bg:'#FFFFFF', fg:'#132039', border:'#C8CCD2' };
 export const SECTIONS = ['front','back','leftSleeve','rightSleeve'];
 export const SECTION_LABEL = { front:'Front', back:'Back', leftSleeve:'Left sleeve', rightSleeve:'Right sleeve' };
 export const SNAP_STEP = 0.5;

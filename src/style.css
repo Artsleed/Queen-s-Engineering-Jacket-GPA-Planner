@@ -42,6 +42,41 @@ button,input,select,textarea{font:inherit;color:inherit}
 @media (max-width:1180px){.layout{grid-template-columns:minmax(0,1fr) 330px;grid-template-areas:"edit side" "cat side"}}
 @media (max-width:760px){.layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"edit" "cat" "side"}}
 
+/* Wide, tall enough screens: the page is exactly the window, so the header and footer are
+   always in view. The mat takes the height that's left; the side columns scroll inside
+   themselves if they run long. Narrower screens scroll as a normal page. */
+@media (min-width:1181px) and (min-height:620px){
+  body{height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+  .top{flex:none;padding-top:8px;padding-bottom:8px}
+  .brand h1{font-size:28px}
+  .brand p{margin-top:2px;font-size:13px}
+  .tricolour{flex:none;height:4px}
+  .layout{flex:1;min-height:0;align-items:stretch;padding-top:10px;padding-bottom:8px;gap:12px}
+  .catalog,.insp-pane{min-height:0;overflow-y:auto;overscroll-behavior:contain}
+  /* The 3D view keeps its size; the panel under it takes the rest and scrolls if it must. */
+  .side{min-height:0;display:flex;flex-direction:column}
+  .side>.viewer{flex:none}
+  .side>.insp-pane{flex:0 1 auto}
+  /* The bar list gives up height first, so Add stays in view. */
+  .catalog{display:flex;flex-direction:column}
+  .catalog>*{flex:none}
+  .catalog .picker{flex:1 1 0;display:flex;flex-direction:column}
+  .catalog .picker>*{flex:none}
+  .catalog .picker .item-list{flex:1 1 0;min-height:120px;max-height:none}
+  .side{gap:12px}
+  .editor{display:flex;flex-direction:column;min-height:0}
+  .mat-wrap{flex:1;height:auto;min-height:0}
+  .side .viewer canvas{height:clamp(220px,34vh,400px)}
+  .site-foot{flex:none;display:flex;flex-wrap:wrap;justify-content:center;gap:0 14px;padding:0 16px 8px}
+  .site-foot .credit{margin-bottom:0}
+}
+/* Short windows (laptops at 720 px or so): a smaller preview, so more of the panel fits. */
+@media (min-width:1181px) and (min-height:620px) and (max-height:800px){
+  .catalog{padding:12px}
+  .catalog h2{margin-bottom:6px}
+  .insp-pane .preview canvas{height:100px}
+  .insp-pane .preview.small-pv canvas{height:64px}
+}
 .pane{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-m);padding:14px}
 .pane h2{font-size:16px;margin:0 0 10px;font-weight:700}
 .muted{color:var(--muted)}
@@ -62,21 +97,31 @@ input[type=color]{width:100%;height:36px;border:1px solid var(--line);border-rad
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 
 .picker{display:grid;gap:8px}
-.picker select[size]{padding:4px;min-height:0;height:auto}
-.picker select[size] option{padding:4px 6px;border-radius:4px}
-.picker select[size] optgroup{font-weight:700;color:var(--muted)}
-.picker select[size] optgroup option{color:var(--ink);font-weight:500}
+/* The bar list: folders (one open at a time), each opening into its items. */
+.item-list{border:1px solid var(--line);border-radius:var(--radius-s);background:var(--field);overflow-y:auto;max-height:420px;padding:4px}
+.grp+.grp{border-top:1px solid var(--line)}
+.grp-h{display:flex;width:100%;align-items:center;gap:8px;border:0;background:none;padding:9px 8px;font-weight:700;font-size:14px;cursor:pointer;text-align:left;border-radius:4px;color:var(--ink)}
+.grp-h::before{content:"";width:0;height:0;border-left:5px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .15s;flex:none}
+.grp-h[aria-expanded="true"]::before{transform:rotate(90deg)}
+.grp-h:hover{background:var(--panel)}
+.grp-name{flex:1}
+.grp-n{font-size:12px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.grp-items{display:grid;padding:0 0 6px 14px;max-height:304px;overflow-y:auto;overscroll-behavior:contain} /* about 10 items, then scroll */
+.item{border:0;background:none;text-align:left;padding:5px 8px;border-radius:4px;cursor:pointer;font-size:14px;color:var(--ink)}
+.item:hover{background:var(--panel)}
+.item[aria-selected="true"]{background:var(--accent);color:var(--on-accent)}
+@media (prefers-reduced-motion: reduce){.grp-h::before{transition:none}}
 .picker-count{margin:0}
-.preview .meta .pv-cat{display:block}
 .site-foot{padding:0 clamp(10px,2vw,22px) 24px;text-align:center;font-size:13px;color:var(--muted)}
 .site-foot p{margin:0}
 .site-foot .credit{font-family:var(--display);color:var(--ink);font-size:14px;margin-bottom:4px;letter-spacing:.02em}
-.preview{margin:12px 0;border-radius:var(--radius-m);overflow:hidden;border:1px solid var(--line)}
-.preview canvas{display:block;width:100%;height:130px}
-.preview .meta{padding:10px 12px;background:var(--field)}
-.preview .meta strong{display:block;font-size:15px}
-.preview .meta p{margin:4px 0 0;font-size:13px;color:var(--muted)}
-.maker{border-top:1px solid var(--line);margin-top:14px;padding-top:14px;display:grid;gap:10px}
+.preview{margin:0 0 12px;border-radius:var(--radius-m);overflow:hidden;border:1px solid var(--line)}
+.preview canvas{display:block;width:100%;height:140px}
+.preview.small-pv canvas{height:80px}
+.pv-cat{margin:2px 0 0}
+.pv-note{margin:8px 0 0;color:var(--muted)}
+.btn.wide{width:100%;margin-top:12px}
+.maker{display:grid;gap:10px}
 .maker h3{margin:0;font-size:15px}
 .flag-opts{display:grid;gap:10px}
 
@@ -120,14 +165,8 @@ input[type=color]{width:100%;height:36px;border:1px solid var(--line);border-rad
 .status{font-size:13px;font-weight:600;margin:4px 0 12px}
 .status.bad{color:var(--warn)}.status.good{color:var(--ok)}
 .insp-body{display:grid;gap:10px}
+.insp-fixed{margin:0 0 10px}
 
-.space-row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 0;border-top:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;width:100%}
-.space-row:first-of-type{border-top:0}
-.space-row .nm{font-weight:600}
-.space-row .pc{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
-.meter{grid-column:1/-1;height:8px;border-radius:4px;background:var(--field);border:1px solid var(--line);overflow:hidden}
-.meter i{display:block;height:100%;background:var(--q-gold)}
-.space-row .issue{grid-column:1/-1;color:var(--warn);font-size:12px;font-weight:600}
 
 dialog{border:1px solid var(--line);border-radius:var(--radius-m);background:var(--panel);color:var(--ink);padding:0;width:min(520px,94vw)}
 dialog::backdrop{background:rgba(5,12,25,.55)}

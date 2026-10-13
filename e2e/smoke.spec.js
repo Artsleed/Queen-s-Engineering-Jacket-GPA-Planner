@@ -24,11 +24,15 @@ test('loads with a working 3D view and no errors', async ({ page }, info) => {
 });
 
 test('adding, overlapping, undoing and reloading a plan', async ({ page }, info) => {
-  const add = page.locator('#btnAdd');
+  const add = page.locator('#btnAdd'), first = page.locator('#itemList .item').first();
+  await page.locator('.grp-h').first().click(); // open the first folder
+  await first.click();
   await add.click();
   const y1 = await page.locator('#iY').inputValue();
+  // The panel now shows the placed bar; picking it in the list again brings back Add.
+  await first.click();
   await add.click();
-  await expect(page.locator('.tab[data-s="front"] .count')).toHaveText('2');
+  await expect(page.locator('.tab[data-s="front"] .count')).toHaveText('3'); // two bars plus the year crest
   // Auto-placement keeps the two bars apart.
   await expect(page.locator('#inspector .status')).toHaveText('Fits with room to sew');
 
@@ -58,31 +62,41 @@ test('adding, overlapping, undoing and reloading a plan', async ({ page }, info)
   // The plan survives a reload.
   await expect(page.locator('#saveState')).toHaveText('Saved in this browser');
   await page.reload();
-  await expect(page.locator('.tab[data-s="front"] .count')).toHaveText('2');
+  await expect(page.locator('.tab[data-s="front"] .count')).toHaveText('3');
   expect(info.errors).toEqual([]);
 });
 
 test('searching and filtering the bar list', async ({ page }, info) => {
   await expect(page.locator('.site-foot')).toContainText("Not affiliated with or endorsed by Queen's University");
-  const list = page.locator('#itemSelect');
-  expect(await list.locator('option').count()).toBeGreaterThan(500); // the sheet's bars are all there
+  // Folders only, all closed, at first; the sheet's bars are all in them.
+  const heads = page.locator('.grp-h');
+  await expect(page.locator('.grp-items')).toHaveCount(0);
+  const total = await heads.evaluateAll(hs => hs.reduce((a, h) => a + +h.dataset.n, 0));
+  expect(total).toBeGreaterThan(500);
+  // One folder open at a time: opening Flags closes the first.
+  await heads.first().click();
+  await expect(page.locator('.grp-items')).toHaveCount(1);
+  await page.locator('.grp-h[data-g="flag"]').click();
+  await expect(page.locator('.grp-items')).toHaveCount(1);
+  await expect(page.locator('.grp-h[data-g="flag"]')).toHaveAttribute('aria-expanded', 'true');
+  await page.locator('.grp-h[data-g="flag"]').click();
+  await expect(page.locator('.grp-items')).toHaveCount(0);
 
   await page.locator('#itemSearch').fill('iron throne');
-  await expect(list.locator('option')).toHaveText(['Iron Throne']);
+  await expect(page.locator('#itemList .item')).toHaveText(['Iron Throne']);
+  await page.locator('#itemList .item').click();
   await expect(page.locator('#pvName')).toHaveText('Iron Throne');
-  await page.locator('#itemSearch').press('Enter'); // Enter adds it
+  await page.locator('#itemSearch').press('Enter'); // Enter adds the first match
   await expect(page.locator('#inspector strong')).toHaveText('Iron Throne');
 
-  await page.locator('#itemSearch').fill('');
-  await page.locator('#itemCat').selectOption('flag');
-  await expect(list.locator('optgroup')).toHaveAttribute('label', 'Flags');
-
   await page.locator('#itemSearch').fill('zzzz no such bar');
-  await expect(page.locator('#btnAdd')).toBeDisabled();
+  await expect(page.locator('#itemList .item')).toHaveCount(0);
+  await expect(page.locator('#itemCount')).toHaveText(/^Nothing matches/);
   expect(info.errors).toEqual([]);
 });
 
 test('a new jacket has its traditional pieces, and the leather colour switches', async ({ page }, info) => {
+  await expect(page.locator('.tab[data-s="front"] .count')).toHaveText('1');
   await expect(page.locator('.tab[data-s="back"] .count')).toHaveText('1');
   await expect(page.locator('.tab[data-s="leftSleeve"] .count')).toHaveText('2');
   await expect(page.locator('.tab[data-s="rightSleeve"] .count')).toHaveText('2');
@@ -95,12 +109,24 @@ test('a new jacket has its traditional pieces, and the leather colour switches',
   await page.locator('#btnUndo').click();
   await expect(yellow).toHaveAttribute('aria-pressed', 'true');
 
-  // Re-adding a traditional piece sends it to its own section, not the current one.
+  // Traditional pieces are always on the jacket, so the picker doesn't offer them.
   await page.locator('#itemSearch').fill('pass crest');
-  await expect(page.locator('#btnAdd')).toHaveText('Add to right sleeve');
-  await page.locator('#btnAdd').click();
-  await expect(page.locator('.tab[data-s="rightSleeve"]')).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('.tab[data-s="rightSleeve"] .count')).toHaveText('3');
+  await expect(page.locator('#btnAdd')).toHaveCount(0);
+
+  // They're fixed: selecting one shows no move or remove controls, and Delete does nothing.
+  await page.locator('.tab[data-s="rightSleeve"]').click();
+  await page.evaluate(async () => { const { select } = await import('/src/panels.js'); const { state } = await import('/src/state.js'); select(state.placed.find(p => p.item === 'patch-pass').uid); });
+  await expect(page.locator('#inspector strong')).toHaveText('Pass crest');
+  await expect(page.locator('#iX')).toHaveCount(0);
+  await expect(page.locator('#iDel')).toHaveCount(0);
+  await page.locator('#mat').press('Delete');
+  await expect(page.locator('.tab[data-s="rightSleeve"] .count')).toHaveText('2');
+
+  // Reset asks first.
+  await page.locator('#btnReset').click();
+  await expect(page.locator('#resetDlg')).toBeVisible();
+  await page.locator('#resetNo').click();
+  await expect(page.locator('#resetDlg')).toBeHidden();
   expect(info.errors).toEqual([]);
 });
 

@@ -1,11 +1,12 @@
-/* ===================== Tabs, inspector, space ===================== */
-import { SECTIONS, SECTION_LABEL, DEFAULT_MEAS, DEFAULT_JACKET, JACKET_COLOURS } from './config.js';
+/* ===================== Tabs, inspector ===================== */
+import { SECTIONS, SECTION_LABEL, JACKET_COLOURS } from './config.js';
 import { $, clamp, r1, newId } from './util.js';
-import { state, current, sel, setCurrent, setSel, getDef, sectionSize, noGoZones, dims } from './state.js';
+import { state, current, sel, setCurrent, setSel, getDef, sectionSize, dims, textOf, isFixed, TEXT_EDITABLE, FIXED_NOTE, setState, newJacket, rebuildCatalog } from './state.js';
+import { GROUP_LABEL, groupOf } from './catalog.js';
 import { conflicts, findSpot, settle, settleNote } from './fit.js';
-import { localOutline, coverage } from './shapes.js';
+import { localOutline } from './shapes.js';
 import { layoutEditor, drawEditor } from './editor2d.js';
-import { refreshAddLabel } from './catalog-ui.js';
+import { refreshAddLabel, chosenDef, drawPreview, addChosen, makerOpen, closeMaker } from './catalog-ui.js';
 import { focusSection, renderTexture } from './jacket3d.js';
 import { pushHistory, commit, liveUpdate, liveUpdateAll, toast } from './pipeline.js';
 import { scheduleSave } from './storage.js';
@@ -65,23 +66,66 @@ export function setSection(s, focus){
   for (const x of SECTIONS) renderTexture(x);
 }
 export function select(uid){
+  if (uid && makerOpen()) closeMaker(false);
   setSel(uid); drawEditor(); renderInspector();
   for (const s of SECTIONS) renderTexture(s);
 }
+// The right-hand panel shows one thing at a time, sharing the preview at the top:
+//   the "make your own" form (it draws its own preview), else
+//   the selected patch on the jacket, with its controls, else
+//   the item highlighted in the list, with Add, else a hint.
 export function renderInspector(){
-  const el = $('#inspector'), p = state.placed.find(q => q.uid === sel);
-  if (!p){ el.innerHTML = '<h2>Selected</h2><p class="insp-empty">Tap a patch on the jacket to move, rotate, or relabel it.</p>'; return; }
+  const el = $('#inspector'), pv = $('#previewWrap'), p = state.placed.find(q => q.uid === sel);
+  // A placed patch is also on the mat, so its preview can be smaller.
+  pv.classList.toggle('small-pv', !!p && !makerOpen());
+  if (makerOpen()){ el.innerHTML = ''; pv.hidden = false; return; }
+  if (!p){
+    const d = chosenDef();
+    if (!d){ pv.hidden = true; el.innerHTML = '<p class="insp-empty">Pick something from the list, or tap a patch on the jacket to move, rotate or relabel it.</p>'; return; }
+    el.innerHTML = `
+      <div class="insp-title"><strong id="pvName"></strong><span class="small muted" id="pvSize"></span></div>
+      <p class="small muted pv-cat" id="pvCat"></p>
+      <p class="small pv-note" id="pvNote"></p>
+      <button class="btn primary wide" id="btnAdd"></button>`;
+    $('#pvName').textContent = d.name;
+    $('#pvSize').textContent = `${r1(d.w)} × ${r1(d.h)} cm`;
+    $('#pvCat').textContent = GROUP_LABEL[groupOf(d)] || '';
+    $('#pvNote').textContent = d.note || ''; $('#pvNote').hidden = !d.note;
+    $('#btnAdd').onclick = addChosen; refreshAddLabel();
+    pv.hidden = false; drawPreview(d);
+    return;
+  }
   const d = getDef(p.item), dm = dims(p), why = conflicts(p.section).get(p.uid);
+  pv.hidden = false; drawPreview(d, textOf(p));
+  const wireText = () => {
+    const it = $('#iText'); it.value = p.text ?? ''; it.placeholder = d.text || 'No text';
+    it.addEventListener('focus', () => pushHistory(), { once:true });
+    it.addEventListener('input', () => { p.text = it.value === '' ? null : it.value; drawPreview(d, textOf(p)); liveUpdate(); scheduleSave(); });
+  };
+  // Traditional pieces are fixed: only the year number's and year motto's text can change.
+  if (isFixed(p)){
+    el.innerHTML = `
+      <div class="insp-title"><strong></strong><span class="small muted"></span></div>
+      <p class="status ${why ? 'bad' : 'good'}"></p>
+      <p class="small muted insp-fixed"></p>
+      ${TEXT_EDITABLE.has(p.item) ? '<label class="field"><span>Text on this one</span><input type="text" id="iText" maxlength="24"></label>' : ''}`;
+    el.querySelector('strong').textContent = d.name;
+    el.querySelector('.insp-title .muted').textContent = `${r1(dm.w)} × ${r1(dm.h)} cm`;
+    el.querySelector('.status').textContent = why || 'Fits with room to sew';
+    el.querySelector('.insp-fixed').textContent = `${FIXED_NOTE} ${d.note || ''}`.trim();
+    if (TEXT_EDITABLE.has(p.item)) wireText();
+    return;
+  }
   el.innerHTML = `
     <div class="insp-title"><strong></strong><span class="small muted"></span></div>
     <p class="status ${why ? 'bad' : 'good'}"></p>
     <div class="insp-body">
       <label class="field"><span>Text on this one</span><input type="text" id="iText" maxlength="24"></label>
-      <div class="grid2">
+      <div class="grid3">
         <label class="field"><span>From left (cm)</span><input type="number" id="iX" step="0.1"></label>
         <label class="field"><span>From top (cm)</span><input type="number" id="iY" step="0.1"></label>
+        <label class="field"><span>Section</span><select id="iSec"></select></label>
       </div>
-      <label class="field"><span>Section</span><select id="iSec"></select></label>
       <div class="row">
         <button class="btn" id="iRot">Rotate 90°</button>
         <button class="btn" id="iDup">Duplicate</button>
@@ -91,9 +135,7 @@ export function renderInspector(){
   el.querySelector('strong').textContent = d.name;
   el.querySelector('.insp-title .muted').textContent = `${r1(dm.w)} × ${r1(dm.h)} cm`;
   el.querySelector('.status').textContent = why || 'Fits with room to sew';
-  const it = $('#iText'); it.value = p.text ?? ''; it.placeholder = d.text || 'No text';
-  it.addEventListener('focus', () => pushHistory(), { once:true });
-  it.addEventListener('input', () => { p.text = it.value === '' ? null : it.value; liveUpdate(); scheduleSave(); });
+  wireText();
   $('#iX').value = r1(p.x); $('#iY').value = r1(p.y);
   const setPos = () => {
     pushHistory(); const { w, h } = sectionSize(p.section);
@@ -117,7 +159,7 @@ export function renderInspector(){
   };
 }
 export function rotateSel(){
-  const p = state.placed.find(q => q.uid === sel); if (!p) return;
+  const p = state.placed.find(q => q.uid === sel); if (!p || isFixed(p)) return;
   pushHistory();
   const before = dims(p), cx = p.x + before.w/2, cy = p.y + before.h/2;
   p.rot = p.rot === 90 ? 0 : 90;
@@ -126,49 +168,21 @@ export function rotateSel(){
   const why = settle(p); commit(); if (why) toast(settleNote(p, why));
 }
 export function removeSel(){
-  const p = state.placed.find(q => q.uid === sel); if (!p) return;
+  const p = state.placed.find(q => q.uid === sel); if (!p || isFixed(p)) return;
   pushHistory();
   state.placed = state.placed.filter(q => q.uid !== sel); setSel(null);
   toast(`Removed ${getDef(p.item).name}.`, true);
   commit();
 }
-function shapeArea(p){ const d = getDef(p.item); return d.w*d.h*coverage(d); }
-export function renderSpace(){
-  const el = $('#space'); el.innerHTML = '';
-  for (const s of SECTIONS){
-    const { w, h } = sectionSize(s), zones = noGoZones(s);
-    const usable = w*h - zones.reduce((a, z) => a + z.w*z.h, 0);
-    const list = state.placed.filter(p => p.section === s);
-    const used = list.reduce((a, p) => a + shapeArea(p), 0), pct = usable > 0 ? Math.round(100*used/usable) : 0;
-    const issues = conflicts(s).size;
-    const b = document.createElement('button'); b.className = 'space-row';
-    b.innerHTML = `<span class="nm"></span><span class="pc"></span><span class="meter"><i></i></span>${issues ? '<span class="issue"></span>' : ''}`;
-    b.querySelector('.nm').textContent = SECTION_LABEL[s];
-    b.querySelector('.pc').textContent = `${list.length} ${list.length === 1 ? 'item' : 'items'}, ${pct}% used`;
-    b.querySelector('.meter i').style.width = Math.min(100, pct) + '%';
-    if (issues) b.querySelector('.issue').textContent = `${issues} ${issues === 1 ? 'needs' : 'need'} moving`;
-    b.onclick = () => setSection(s, true);
-    el.append(b);
-  }
-}
-
-/* ===================== Jacket size dialog ===================== */
-const MFIELDS = { mChest:'chest', mLength:'length', mSleeve:'sleeve', mSleeveCirc:'sleeveCirc', mWaist:'waistband', mCuff:'cuff', mZip:'zipper', mGap:'gap' };
-function fillMeasure(meas, jacket){
-  for (const [id, k] of Object.entries(MFIELDS)) $('#' + id).value = meas[k];
-  $('#mLining').value = jacket.lining;
-}
-$('#btnMeasure').onclick = () => { fillMeasure(state.meas, state.jacket); $('#measureDlg').showModal(); };
-$('#mCancel').onclick = () => $('#measureDlg').close();
-$('#mDefaults').onclick = () => fillMeasure(DEFAULT_MEAS, DEFAULT_JACKET);
-$('#mSave').onclick = () => {
+/* ===================== Reset ===================== */
+// Back to a new jacket (only the traditional pieces on it), after asking. Items the user made
+// stay in the list, and Undo brings the old plan back.
+$('#btnReset').onclick = () => $('#resetDlg').showModal();
+$('#resetNo').onclick = () => $('#resetDlg').close();
+$('#resetYes').onclick = () => {
+  $('#resetDlg').close();
   pushHistory();
-  for (const [id, k] of Object.entries(MFIELDS)){
-    const el = $('#' + id), v = +el.value;
-    if (isFinite(v) && el.value !== '') state.meas[k] = clamp(v, +el.min, +el.max);
-  }
-  state.jacket.lining = $('#mLining').value;
-  $('#measureDlg').close(); commit();
-  const issues = SECTIONS.reduce((a, s) => a + conflicts(s).size, 0);
-  toast(issues ? `Size updated. ${issues} ${issues === 1 ? 'item no longer fits' : 'items no longer fit'}.` : 'Size updated.');
+  const fresh = newJacket(); fresh.items = state.items;
+  setState(fresh); setSel(null); rebuildCatalog(); setSection('front', true);
+  commit(); toast('Started over.', true);
 };

@@ -1,8 +1,9 @@
 // Checks how the sheet and the presets become the app's catalogue.
 import { describe, it, expect } from 'vitest';
 import bars from '../data/bars.xlsx';
-import { BUILTINS, GROUPS, groupOf, sheetBarDef } from '../src/catalog.js';
+import { BUILTINS, GROUPS, HIDDEN_GROUPS, groupOf, sheetBarDef } from '../src/catalog.js';
 import { setState, normalize, rebuildCatalog, getDef, state } from '../src/state.js';
+import { flagUrl } from '../src/flags.js';
 
 // Sheet bars carry the sheet's type column; hand-added rows have no wiki pageid, so their id isn't wiki-.
 const isSheetBar = d => 'type' in d;
@@ -15,7 +16,7 @@ describe('catalogue', () => {
     expect(new Set(BUILTINS.map(d => d.id)).size).toBe(BUILTINS.length);
   });
   it('lists every item under a known group', () => {
-    const known = new Set(GROUPS.map(([g]) => g));
+    const known = new Set([...GROUPS, ...HIDDEN_GROUPS].map(([g]) => g));
     expect(BUILTINS.filter(d => !known.has(groupOf(d))).map(d => d.name)).toEqual([]);
   });
   it('files sheet bars by their type, and blank types as not sorted yet', () => {
@@ -45,16 +46,17 @@ describe('loading old plans', () => {
     expect(getDef(state.placed[0].item).name).toBe('EngSoc Crest');
   });
   it('has no preset with the same name as a sheet bar', () => {
+    // Flags are exempt: the sheet's "Australia" is a bar, not the flag.
     const names = new Set(bars.map(b => b.name.toLowerCase()));
-    expect(BUILTINS.filter(d => !isSheetBar(d) && names.has(d.name.toLowerCase())).map(d => d.name)).toEqual([]);
+    expect(BUILTINS.filter(d => !isSheetBar(d) && d.cat !== 'flag' && names.has(d.name.toLowerCase())).map(d => d.name)).toEqual([]);
   });
 });
 
 describe('rebuildCatalog', () => {
   it('keeps a placement whose bar has left the list', () => {
-    setState(normalize({ v:2, placed:[{ uid:'a', item:'wiki-does-not-exist', section:'front', x:2, y:3, rot:0 }] }));
+    setState(normalize({ v:4, placed:[{ uid:'a', item:'wiki-does-not-exist', section:'front', x:2, y:3, rot:0 }] }));
     rebuildCatalog();
-    expect(state.placed).toHaveLength(1);
+    expect(state.placed.filter(p => p.item === 'wiki-does-not-exist')).toHaveLength(1);
     expect(getDef('wiki-does-not-exist').missing).toBe(true);
   });
 });
@@ -64,5 +66,15 @@ describe('dyeing', () => {
     const { dyedChenille, JACKET_COLOURS } = await import('../src/config.js');
     expect(dyedChenille(JACKET_COLOURS.find(c => c.id === 'undyed').color)).toBeNull();
     expect(dyedChenille(JACKET_COLOURS.find(c => c.id === 'dyed').color).backing).toBeTruthy();
+  });
+});
+
+describe('flags', () => {
+  it('has every country, keeping the old flag ids', () => {
+    const flags = BUILTINS.filter(d => d.cat === 'flag');
+    expect(flags.length).toBeGreaterThan(240);
+    for (const id of ['flag-ca', 'flag-fr', 'flag-it', 'flag-ie', 'flag-de', 'flag-nl', 'flag-ua', 'flag-ng', 'flag-jp', 'flag-gb-sct'])
+      expect(flags.some(d => d.id === id), id).toBe(true);
+    for (const d of flags) expect(flagUrl(d.flag.code), d.name).toBeTruthy();
   });
 });

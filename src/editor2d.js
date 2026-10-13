@@ -1,7 +1,7 @@
 /* ===================== 2D editor ===================== */
 import { SNAP_STEP } from './config.js';
 import { $, clamp, r1 } from './util.js';
-import { state, current, sel, sectionSize, dims } from './state.js';
+import { state, current, sel, sectionSize, dims, isFixed, FIXED_NOTE } from './state.js';
 import { drawPanel } from './draw.js';
 import { pushHistory, commit, liveUpdate, undoStack, updateUndo, toast } from './pipeline.js';
 import { settle, settleNote } from './fit.js';
@@ -64,6 +64,7 @@ ed.canvas.addEventListener('pointerdown', ev => {
   const pt = toCm(ev), p = hitTest(current, pt.x, pt.y);
   if (!p){ select(null); return; }
   select(p.uid);
+  if (isFixed(p)) return; // traditional pieces stay put
   pushHistory();
   state.placed.splice(state.placed.indexOf(p), 1); state.placed.push(p);
   drag = { uid:p.uid, sx:p.x, sy:p.y, px:pt.x, py:pt.y, moved:false };
@@ -71,7 +72,7 @@ ed.canvas.addEventListener('pointerdown', ev => {
 });
 ed.canvas.addEventListener('pointermove', ev => {
   const pt = toCm(ev);
-  if (!drag){ ed.canvas.style.cursor = hitTest(current, pt.x, pt.y) ? 'grab' : 'default'; return; }
+  if (!drag){ const h = hitTest(current, pt.x, pt.y); ed.canvas.style.cursor = h ? (isFixed(h) ? 'pointer' : 'grab') : 'default'; return; }
   const p = state.placed.find(q => q.uid === drag.uid); if (!p) return;
   const d = dims(p), { w, h } = sectionSize(current);
   let nx = drag.sx + (pt.x - drag.px), ny = drag.sy + (pt.y - drag.py);
@@ -89,6 +90,11 @@ ed.canvas.addEventListener('pointerup', endDrag);
 ed.canvas.addEventListener('pointercancel', endDrag);
 ed.canvas.addEventListener('keydown', ev => {
   const p = state.placed.find(q => q.uid === sel); if (!p) return;
+  if (ev.key === 'Escape'){ select(null); return; }
+  if (isFixed(p)){
+    if (/^Arrow|^[rR]$|^Delete$|^Backspace$/.test(ev.key)){ ev.preventDefault(); toast(FIXED_NOTE); }
+    return;
+  }
   const step = ev.shiftKey ? 2 : ($('#snap').checked ? SNAP_STEP : 0.1);
   const mv = { ArrowLeft:[-step,0], ArrowRight:[step,0], ArrowUp:[0,-step], ArrowDown:[0,step] }[ev.key];
   if (mv){
@@ -98,5 +104,4 @@ ed.canvas.addEventListener('keydown', ev => {
     const why = settle(p); commit(); if (why) toast(settleNote(p, why));
   } else if (ev.key === 'r' || ev.key === 'R'){ ev.preventDefault(); rotateSel(); }
   else if (ev.key === 'Delete' || ev.key === 'Backspace'){ ev.preventDefault(); removeSel(); }
-  else if (ev.key === 'Escape'){ select(null); }
 });

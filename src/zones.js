@@ -7,7 +7,7 @@
 // agree: the cut-aways (the neckline, and the sleeve cap by the underarm, where the flat
 // rectangle is bigger than the real pattern piece) and the collar and lapels.
 import { FRONT, CUFF_VENT } from './config.js';
-import { cutaways, bodyDims, neckSides, collarSize, frontCollarEdge, backCollarEdge } from './model.js';
+import { cutaways, bodyDims, neckSides, collarSize, collarOutline } from './model.js';
 
 const bbox = pts => {
   const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), x = Math.min(...xs), y = Math.min(...ys);
@@ -32,22 +32,20 @@ function cutawayZones(profile, label, reason){
 
 // The lapel and collar point on one side of the front, as one polygon.
 function lapelZone(m, side){
-  const d = bodyDims(m), W = d.W, ns = neckSides(d), { lapelW, lapelDrop, tipX, tipY, fall } = collarSize(d);
-  const xe = W/2, xn = side < 0 ? ns.front*W : (1 - ns.front)*W, xs = xn + side*fall*W/ns.topFront;
-  const tip = [xe + side*tipX, tipY];
+  const d = bodyDims(m), { lapelW, lapelDrop } = collarSize(d), xe = d.W/2;
+  // The collar's outer edge, from the point (q = 0) to the shoulder seam: the same one the 3D collar uses.
+  const edge = collarOutline(d).front[side], tip = edge[0], seam = edge[edge.length - 1];
   // Where the collar's end (from the neck to its tip) crosses the lapel's outer edge.
   const lapelX = y => xe + side*lapelW*(1 - y/lapelDrop);
   let s = 0.5;
-  for (let i = 0; i < 40; i++){ const x = xe + side*tipX*s, y = tipY*s; if (side*(x - lapelX(y)) > 0) s -= 0.5**(i + 2); else s += 0.5**(i + 2); }
-  const cross = [xe + side*tipX*s, tipY*s];
-  const curve = [];
-  for (let k = 1; k < 12; k++) curve.push(frontCollarEdge(d, side, k/12));
-  return zone([[xs, 0], [xe, 0], [xe, lapelDrop], cross, tip, ...curve], { label:'Lapel', kind:'lapel', side });
+  for (let i = 0; i < 40; i++){ const x = xe + (tip[0] - xe)*s, y = tip[1]*s; if (side*(x - lapelX(y)) > 0) s -= 0.5**(i + 2); else s += 0.5**(i + 2); }
+  const cross = [xe + (tip[0] - xe)*s, tip[1]*s];
+  const curve = edge.slice(1, -1).filter((p, k) => k % 2);
+  return zone([seam, [xe, 0], [xe, lapelDrop], cross, tip, ...curve], { label:'Lapel', kind:'lapel', side });
 }
 // The collar lying on the top of the back.
 function backCollarZone(m){
-  const d = bodyDims(m), pts = [];
-  for (let k = 0; k <= 40; k++) pts.push(backCollarEdge(d, k/40));
+  const pts = collarOutline(bodyDims(m)).back;
   return zone(pts, { label:'Collar', kind:'collar' });
 }
 

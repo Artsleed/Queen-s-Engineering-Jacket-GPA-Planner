@@ -3,11 +3,12 @@
 import { describe, it, expect } from 'vitest';
 import { jacketZones } from '../src/zones.js';
 import { DEFAULT_MEAS } from '../src/config.js';
-import { setState, normalize, rebuildCatalog } from '../src/state.js';
+import { setState, normalize, rebuildCatalog, isFixed } from '../src/state.js';
 import { conflicts } from '../src/fit.js';
 
 const BOX = { id:'c-box', cat:'bar', name:'Box', text:'', w:4, h:3, shape:'rect' };
-const load = placed => { setState(normalize({ v:3, items:[BOX], placed })); rebuildCatalog(); };
+// A bare jacket: the traditional pieces every loaded plan gets are taken off.
+const load = placed => { const s = normalize({ v:4, items:[BOX], placed }); s.placed = s.placed.filter(p => !isFixed(p)); setState(s); rebuildCatalog(); };
 const box = (section, x, y) => ({ uid:'a', item:'c-box', section, x, y, rot:0 });
 const kinds = s => jacketZones(s, DEFAULT_MEAS).map(z => z.kind).sort();
 
@@ -53,7 +54,7 @@ describe('fit checks against the zones', () => {
     // The pocket's box is wider than the welt; a patch in the box's empty corner is fine.
     const [tx, ty] = pk.top, corner = tx < pk.bottom[0] ? [pk.x + pk.w - 0.6, pk.y + 0.2] : [pk.x + 0.2, pk.y + 0.2];
     load([{ ...box('front', corner[0] - 0.3, corner[1] - 2.8), uid:'a' }].map(p => ({ ...p, item:'c-tiny' })));
-    setState(normalize({ v:3, items:[{ ...BOX, id:'c-tiny', w:0.4, h:2.6 }], placed:[{ uid:'a', item:'c-tiny', section:'front', x:corner[0] - 0.2, y:corner[1] - 2.9, rot:0 }] })); rebuildCatalog();
+    setState(normalize({ v:4, items:[{ ...BOX, id:'c-tiny', w:0.4, h:2.6 }], placed:[{ uid:'a', item:'c-tiny', section:'front', x:corner[0] - 0.2, y:corner[1] - 2.9, rot:0 }] })); rebuildCatalog();
     expect(conflicts('front').has('a'), `pocket top ${tx},${ty}`).toBe(false);
   });
 });

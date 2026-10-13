@@ -6,6 +6,7 @@
 // a bar is earned.
 import { PRESETS, BAR } from './config.js';
 import sheetBars from '../data/bars.xlsx';
+import { FLAG_DEFS } from './flags.js';
 
 export function sheetBarDef(row){
   const id = row.pageid ? `wiki-${row.pageid}` : `sheet-${row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
@@ -15,22 +16,26 @@ export function sheetBarDef(row){
 // Old preset ids that now come from the sheet. normalize() rewrites saved plans to use the new id.
 export const RENAMED_IDS = { 'bar-wizard':'wiki-2095', 'patch-engsoc':'wiki-2064' };
 
-export const BUILTINS = [...PRESETS, ...sheetBars.map(sheetBarDef)];
+export const BUILTINS = [...PRESETS, ...sheetBars.map(sheetBarDef), ...FLAG_DEFS];
 export const BUILTIN_MAP = new Map(BUILTINS.map(d => [d.id, d]));
 
 // Picker groups, in the order they're listed. `type` is the sheet's type column.
 export const GROUPS = [
-  ['traditional', 'Traditional pieces'],
   ['official', 'Shenanigans: official'],
   ['experimental', 'Shenanigans: experimental'],
   ['academic', 'Academic & extracurricular'],
-  ['unsorted', 'Bars not sorted yet'],
-  ['basic', 'Generic bars'],
-  ['patch', 'Patches'],
   ['flag', 'Flags'],
+  ['unsorted', 'Bars not sorted yet'],
   ['yours', 'Made by you'],
 ];
-export const GROUP_LABEL = Object.fromEntries(GROUPS);
+// Groups that exist but aren't in the picker. Traditional pieces are already on
+// every jacket (Nathaniel); the generic bars and patches are left out with them.
+export const HIDDEN_GROUPS = [
+  ['traditional', 'Traditional pieces'],
+  ['basic', 'Generic bars'],
+  ['patch', 'Patches'],
+];
+export const GROUP_LABEL = Object.fromEntries([...GROUPS, ...HIDDEN_GROUPS]);
 
 // Which group an item is listed under. Looks up the built-in by id, so an
 // edited copy of a sheet bar stays in its sheet category.

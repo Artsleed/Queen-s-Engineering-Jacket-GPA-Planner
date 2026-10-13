@@ -7,7 +7,7 @@
 import { DEFAULT_MEAS, DEFAULT_JACKET, SECTIONS } from './config.js';
 import { jacketZones } from './zones.js';
 import { BUILTINS, BUILTIN_MAP, RENAMED_IDS, missingDef } from './catalog.js';
-import { traditionalPlacements } from './layout.js';
+import { traditionalPlacements, traditionalSpots } from './layout.js';
 
 const uid = () => Math.random().toString(36).slice(2,10);
 
@@ -23,13 +23,14 @@ export const setSel = uid => { sel = uid; };
 const PRESET_IDS = new Set(BUILTINS.map(p => p.id));
 
 export function freshState(){
-  return { v:3, updatedAt:0, meas:{...DEFAULT_MEAS}, jacket:{...DEFAULT_JACKET}, items:[], placed:[] };
+  return { v:4, updatedAt:0, meas:{...DEFAULT_MEAS}, jacket:{...DEFAULT_JACKET}, items:[], placed:[] };
 }
 export function normalize(raw){
   const s = freshState();
   if (!raw || typeof raw !== 'object') return s;
   s.updatedAt = +raw.updatedAt || 0;
-  if (raw.meas) for (const k of Object.keys(DEFAULT_MEAS)) if (isFinite(+raw.meas[k])) s.meas[k] = +raw.meas[k];
+  // Measurements are fixed at the defaults (Nathaniel: the proportions are right, and that's what
+  // matters), so sizes saved by older plans are ignored. The `meas` field stays for the code.
   if (raw.jacket){
     if (/^#[0-9a-f]{6}$/i.test(raw.jacket.color)) s.jacket.color = raw.jacket.color;
     if (/^#[0-9a-f]{6}$/i.test(raw.jacket.lining)) s.jacket.lining = raw.jacket.lining;
@@ -41,9 +42,30 @@ export function normalize(raw){
   if (Array.isArray(raw.items)) s.items = raw.items.filter(d => d && d.id && isFinite(+d.w) && isFinite(+d.h)).map(d => ({...d, id:id(d.id), w:+d.w, h:+d.h}));
   if (Array.isArray(raw.placed)) s.placed = raw.placed.filter(p => p && p.uid && SECTIONS.includes(p.section)).map(p => ({ uid:String(p.uid), item:id(p.item), section:p.section, x:+p.x||0, y:+p.y||0, rot: (+p.rot===90)?90:0, text: typeof p.text === 'string' ? p.text : null }));
   // v1 -> v2: jackets now come with the traditional pieces. Add any that aren't on yet.
-  if ((+raw.v || 1) < 2) s.placed.push(...traditionalPlacements(s.meas, itemSize(s), uid, new Set(s.placed.map(p => p.item))));
+  // Older plans (v1 had none, v3 had no year crest, and until now they could be moved) all
+  // end up with every traditional piece, each in its spot.
+  pinTraditional(s);
   return s;
 }
+// Traditional pieces are fixed (Nathaniel): every plan has exactly one of each, in its spot,
+// upright. Run on load and whenever the measurements change (the spots move with them).
+export function pinTraditional(plan){
+  const spots = traditionalSpots(plan.meas, itemSize(plan)), seen = new Set();
+  plan.placed = plan.placed.filter(p => {
+    const s = spots[p.item]; if (!s) return true;
+    if (seen.has(p.item)) return false; // a duplicate of a fixed piece
+    seen.add(p.item);
+    Object.assign(p, { section:s.section, x:Math.round(s.x*10)/10, y:Math.round(s.y*10)/10, rot:0 });
+    return true;
+  });
+  plan.placed.push(...traditionalPlacements(plan.meas, itemSize(plan), uid, seen));
+  return plan;
+}
+// A traditional piece: can't be moved, rotated, copied or removed.
+export const isFixed = p => !!(p && BUILTIN_MAP.get(p.item)?.trad);
+// The fixed pieces whose text can still be typed in.
+export const TEXT_EDITABLE = new Set(['patch-year', 'trad-year-motto']);
+export const FIXED_NOTE = 'Traditional pieces stay in their spot.';
 // A brand-new jacket: default size, traditional pieces in their spots.
 export function newJacket(){
   const s = freshState();

@@ -10,11 +10,13 @@ const GAP = 1.5;   // cm between stacked sleeve pieces
 const TOP = 3;     // cm from the shoulder seam to the first sleeve piece (at the outer side)
 const CAP = 1;     // cm clear of the sleeve cap's curve, where it dips toward the underarm
 const BACK_TOP = 7; // cm from the neckline to the top of QUEEN'S (the collar covers the first 5)
+const CREST_IN = 12;  // cm from the front's centre line to the middle of the year crest (over the heart)
+const CREST_TOP = 18; // cm from the top of the front to the top of the year crest, below the collar point
 
 // item id -> { section, x, y } for a jacket with these measurements.
 // `size(id)` gives an item's { w, h } so this file doesn't depend on the catalogue.
 export function traditionalSpots(meas, size){
-  const sleeveW = meas.sleeveCirc, backW = meas.chest/2;
+  const sleeveW = meas.sleeveCirc, backW = meas.chest/2, frontW = meas.chest/2;
   const centred = (W, id) => Math.max(0, (W - size(id).w)/2);
   // The first piece on each sleeve sits below the shoulder seam, clear of the cap's curve.
   const first = (section, id) => {
@@ -30,6 +32,8 @@ export function traditionalSpots(meas, size){
     'patch-pass':      { section:'rightSleeve', x:centred(sleeveW, 'patch-pass'),      y:below('rightSleeve', 'trad-uni-motto') },
     'trad-year-motto': { section:'leftSleeve',  x:centred(sleeveW, 'trad-year-motto'), y:first('leftSleeve', 'trad-year-motto') },
     'patch-year':      { section:'leftSleeve',  x:centred(sleeveW, 'patch-year'),      y:below('leftSleeve', 'trad-year-motto') },
+    // The front's right half is the wearer's left (the heart side).
+    'trad-year-crest': { section:'front',       x:frontW/2 + CREST_IN - size('trad-year-crest').w/2, y:CREST_TOP },
   };
 }
 

@@ -12,6 +12,7 @@
     "scrape": "node scripts/scrape-wiki.mjs"
   },
   "dependencies": {
+    "flag-icons": "7.5.0",
     "three": "0.185.1"
   },
   "devDependencies": {

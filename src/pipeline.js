@@ -5,8 +5,8 @@ import { $ } from './util.js';
 import { state, sel, setSel, current, rebuildCatalog } from './state.js';
 import { layoutEditor, drawEditor } from './editor2d.js';
 import { V, builtKey, buildKeyFor, build3D, renderTexture, refreshSwatch } from './jacket3d.js';
-import { updateTabs, renderInspector, renderSpace } from './panels.js';
-import { buildSelect, chosenDef, drawPreview } from './catalog-ui.js';
+import { updateTabs, renderInspector } from './panels.js';
+import { buildSelect } from './catalog-ui.js';
 import { scheduleSave } from './storage.js';
 
 let liveQueued = false;
@@ -27,9 +27,8 @@ export function commitNoSave(){ redrawEverything(); updateUndo(); }
 export function redrawEverything(){
   // The 3D shape only changes with the measurements and colours; wear is just texture.
   if (V.ok && builtKey !== buildKeyFor()) build3D(); else refreshSwatch();
-  layoutEditor(); drawEditor(); updateTabs(); renderInspector(); renderSpace();
+  layoutEditor(); drawEditor(); updateTabs(); renderInspector();
   for (const s of SECTIONS) renderTexture(s);
-  const d = chosenDef(); if (d && $('#maker').hidden) drawPreview(d);
 }
 
 /* ===================== Undo ===================== */
