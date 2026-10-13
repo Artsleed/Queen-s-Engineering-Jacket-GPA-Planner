@@ -207,3 +207,16 @@ test.describe('on a phone', () => {
     expect(info.errors).toEqual([]);
   });
 });
+
+test('after the 3D view crashed the page, it starts paused until asked', async ({ page }, info) => {
+  // The flag the 3D view leaves set while running; a page that died never cleared it.
+  // (Planted before the page's scripts run: a normal reload clears it on the way out.)
+  await page.addInitScript(() => { if (!sessionStorage.planted){ sessionStorage.planted = '1'; localStorage.setItem('gpa-planner-3d-running', '1'); } });
+  await page.reload();
+  await expect(page.locator('#viewerFail')).toContainText('paused');
+  expect(await page.evaluate(() => window.__V.ok)).toBe(false);
+  await page.locator('#viewerFail button').click();
+  await expect(page.locator('#viewerFail')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.__V.ok)).toBe(true);
+  expect(info.errors).toEqual([]);
+});

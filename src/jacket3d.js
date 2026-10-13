@@ -18,7 +18,7 @@ import { heightLayer, leatherLayer, surfaceLayer, grainCanvas } from './leather.
 
 // The bump map is finer than the colour map, so the pebble grain shows up close.
 // Texture detail, px per cm. The lite view (phones) uses about a quarter of the memory.
-const TEX_PX = LITE ? 7 : FULL_TEX_PX, BUMP_PX = LITE ? 9 : 20;
+const TEX_PX = LITE ? 6 : FULL_TEX_PX, BUMP_PX = LITE ? 8 : 20;
 import { buildJacket, applyFolds, VENT, THICK } from './model.js';
 import pkg from '../package.json';
 import { hitTest } from './editor2d.js';
@@ -34,36 +34,47 @@ if (import.meta.env?.DEV) window.__V = V;
 // Look of the leather. Wear makes it a little rougher and less glossy.
 const LOOK = { bump:1.1, clearcoat:0.3, clearcoatRoughness:0.42, roughness:0.5, wornRoughness:0.2, liningRoughness:0.75, thickness:THICK };
 
-export function init3D(){
+export function init3D(force = false){
   const canvas = $('#three');
   // A dev server started before a three.js upgrade can keep serving its cached old copy,
   // which renders this scene washed out and glittery. Say so instead of showing that.
   const wanted = String(pkg.dependencies.three).split('.')[1];
   if (THREE.REVISION !== wanted){
-    const msg = $('#viewerFail');
-    msg.textContent = `The 3D view loaded an old copy of three.js (r${THREE.REVISION}, needs r${wanted}). Stop the dev server, run npm run dev again, then refresh with Ctrl+Shift+R.`;
-    msg.style.display = 'flex'; return;
+    return viewerNote(`The 3D view loaded an old copy of three.js (r${THREE.REVISION}, needs r${wanted}). Stop the dev server, run npm run dev again, then refresh with Ctrl+Shift+R.`);
   }
-  try {
-    V.renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, preserveDrawingBuffer:!LITE });
-  } catch (e){ $('#viewerFail').style.display = 'flex'; return; }
+  // A 3D view that crashed the page last time starts paused (see guard3D), so one crash
+  // doesn't become a crash loop (and Chrome doesn't switch 3D off for the site).
+  if (!force && crashedLastTime()){
+    return viewerNote('The 3D view closed unexpectedly last time, so it’s paused. The flat editor works as normal.', 'Start the 3D view', () => { viewerNote(null); init3D(true); });
+  }
+  // Ask for the full set-up, then the safest one (no antialiasing, low power) if that's refused.
+  let err = null;
+  const make = opts => { try { return new THREE.WebGLRenderer({ canvas, alpha:true, ...opts }); } catch (e){ err = e; return null; } };
+  V.renderer = make({ antialias:!LITE, preserveDrawingBuffer:!LITE, powerPreference:LITE ? 'low-power' : 'default' })
+    || make({ antialias:false, powerPreference:'low-power' });
+  if (!V.renderer){
+    console.error('3D view failed to start', err);
+    return viewerNote(`The 3D preview couldn’t start in this browser (${String(err && err.message || 'WebGL unavailable').slice(0, 90)}). The flat editor still works. If it worked here before, close the browser completely and open it again: after a crash, Chrome switches 3D off for a site until it restarts.`);
+  }
   V.ok = true;
   const R = V.renderer;
-  // If the device takes the graphics memory back, say so instead of leaving a blank box, and
-  // pick up again when it's returned (three.js rebuilds its side; the textures re-upload).
+  guard3D();
+  // If the device takes the graphics memory back, say so instead of leaving a blank box.
+  // Phones rarely give it back, so offer a restart (a reload, as the 3D view's state is gone).
   canvas.addEventListener('webglcontextlost', e => {
     e.preventDefault(); V.lost = true;
-    const msg = $('#viewerFail'); msg.textContent = 'The 3D view stopped because this device ran low on memory. It should come back on its own; if not, reload the page. The flat editor still works.'; msg.style.display = 'flex';
+    viewerNote('The 3D view stopped because this device ran low on memory. The flat editor still works, and your plan is saved.', 'Restart the 3D view', () => { clearGuard(); location.reload(); });
   });
   canvas.addEventListener('webglcontextrestored', () => {
-    V.lost = false; $('#viewerFail').style.display = 'none';
+    V.lost = false; viewerNote(null);
     for (const s of SECTIONS) if (V.tex[s]) renderTexture(s);
     V.swatch.image = null; refreshSwatch(); V.grain.needsUpdate = true; V.dirty = true;
   });
   R.setPixelRatio(Math.min(LITE ? 1.5 : 2, window.devicePixelRatio || 1));
   // Neutral tone mapping keeps the patch colours true while taming the highlights.
   R.toneMapping = THREE.NeutralToneMapping; R.toneMappingExposure = 1;
-  R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFShadowMap;
+  // Phones skip the real-time shadow (its map and extra pass); the baked shading stays.
+  R.shadowMap.enabled = !LITE; R.shadowMap.type = THREE.PCFShadowMap;
   V.scene = new THREE.Scene();
   V.camera = new THREE.PerspectiveCamera(26, 1, 0.05, 20);
   // A soft studio for reflections, plus a key light (with shadows), a fill and a rim light.
@@ -72,7 +83,7 @@ export function init3D(){
   V.scene.environmentIntensity = 0.38;
   V.scene.add(new THREE.HemisphereLight(0xffffff, 0x3d4350, 0.15));
   const key = new THREE.DirectionalLight(0xfff0dd, 1.7); key.position.set(1.3, 1.9, 2.3);
-  key.castShadow = true; key.shadow.mapSize.set(LITE ? 1024 : 2048, LITE ? 1024 : 2048); key.shadow.radius = 4;
+  key.castShadow = !LITE; key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 4;
   Object.assign(key.shadow.camera, { left:-0.7, right:0.7, top:0.7, bottom:-0.7, near:0.5, far:6 });
   key.shadow.bias = -0.0004; key.shadow.normalBias = 0.012;
   V.scene.add(key);
@@ -96,6 +107,26 @@ export function init3D(){
   resize3D();
   bind3DControls(canvas);
   requestAnimationFrame(loop3D);
+}
+// A message over the 3D view (null hides it), with an optional button.
+function viewerNote(text, label, onClick){
+  const el = $('#viewerFail');
+  if (text == null){ el.style.display = 'none'; return; }
+  el.replaceChildren(Object.assign(document.createElement('p'), { textContent:text }));
+  if (label){ const b = Object.assign(document.createElement('button'), { className:'btn', type:'button', textContent:label }); b.onclick = onClick; el.append(b); }
+  el.style.display = 'flex';
+}
+// Crash guard: a flag in localStorage is set while the 3D view is running and on screen, and
+// cleared when the page is hidden or closed. If it's still set when the page loads, the page
+// died with the 3D view running (a phone out of memory), so the 3D view starts paused.
+const GUARD = 'gpa-planner-3d-running';
+const crashedLastTime = () => { try { return localStorage.getItem(GUARD) === '1'; } catch (e){ return false; } };
+const setGuard = () => { try { localStorage.setItem(GUARD, '1'); } catch (e){} };
+const clearGuard = () => { try { localStorage.removeItem(GUARD); } catch (e){} };
+function guard3D(){
+  setGuard();
+  document.addEventListener('visibilitychange', () => { if (document.hidden) clearGuard(); else if (V.ok && !V.lost) setGuard(); });
+  window.addEventListener('pagehide', clearGuard);
 }
 function disposeTree(o){
   // Textures are kept: they belong to V.tex and are reused by the next build.
