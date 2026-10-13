@@ -99,7 +99,7 @@ test('a new jacket has its traditional pieces, and the leather colour switches',
   await expect(page.locator('.tab[data-s="front"] .count')).toHaveText('1');
   await expect(page.locator('.tab[data-s="back"] .count')).toHaveText('1');
   await expect(page.locator('.tab[data-s="leftSleeve"] .count')).toHaveText('2');
-  await expect(page.locator('.tab[data-s="rightSleeve"] .count')).toHaveText('2');
+  await expect(page.locator('.tab[data-s="rightSleeve"] .count')).toHaveText('3');
   await expect(page.locator('.site-foot')).toContainText('A Nathaniel Felsky-Deelstra production');
 
   const [yellow, purple] = [page.getByRole('button', { name:'Yellow (undyed)' }), page.getByRole('button', { name:'Purple (dyed)' })];
@@ -120,7 +120,7 @@ test('a new jacket has its traditional pieces, and the leather colour switches',
   await expect(page.locator('#iX')).toHaveCount(0);
   await expect(page.locator('#iDel')).toHaveCount(0);
   await page.locator('#mat').press('Delete');
-  await expect(page.locator('.tab[data-s="rightSleeve"] .count')).toHaveText('2');
+  await expect(page.locator('.tab[data-s="rightSleeve"] .count')).toHaveText('3');
 
   // Reset asks first.
   await page.locator('#btnReset').click();

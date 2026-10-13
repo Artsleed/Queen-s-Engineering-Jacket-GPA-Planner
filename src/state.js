@@ -65,7 +65,7 @@ export function pinTraditional(plan){
 // A traditional piece: can't be moved, rotated, copied or removed.
 export const isFixed = p => !!(p && BUILTIN_MAP.get(p.item)?.trad);
 // The fixed pieces whose text can still be typed in.
-export const TEXT_EDITABLE = new Set(['patch-year', 'trad-year-motto']);
+export const TEXT_EDITABLE = new Set(['patch-year', 'trad-year-motto', 'bar-discipline']);
 export const FIXED_NOTE = 'Traditional pieces stay in their spot.';
 // A brand-new jacket: default size, traditional pieces in their spots.
 export function newJacket(){

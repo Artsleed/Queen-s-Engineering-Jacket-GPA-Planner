@@ -54,12 +54,12 @@ export const BAR = { w:12.1, h:4.1, band:2.9, shape:'arc', bg:'#3556A8', fg:'#F2
 export const PRESETS = [
   // Generic bars
   { id:'bar-frec', cat:'bar', name:'FREC group', text:'FREC GROUP', ...BAR, note:'Traditionally at the bottom right of the back.' },
-  { id:'bar-discipline', cat:'bar', name:'Discipline', text:'COMPUTER', ...BAR, note:'Your program. Traditionally on the right sleeve, below the pass crest. Edit the text per placement.' },
   { id:'bar-frosh', cat:'bar', name:'Frosh group', text:'FROSH GROUP', ...BAR, note:'Traditionally at the bottom left of the back.' },
   { id:'bar-blank', cat:'bar', name:'Blank bar', text:'BAR', ...BAR, note:'Rename it on the jacket to stand in for any bar.' },
   // Traditional pieces. New jackets start with these in their spots (see layout.js).
   { id:'trad-qas', cat:'patch', name:"QUEEN'S APPLIED SCIENCE", text:'', w:38.6, h:30.5, shape:'qas', ...BACK_LETTERS, trad:true, note:'Upper back. The letters are sewn on as one block.' },
   { id:'trad-uni-motto', cat:'patch', name:'University motto', text:'QUIS-DOLOR-CUI-DOLIUM', w:11.4, h:3.8, shape:'scroll', ...MOTTO, trad:true, note:'Top of the right sleeve.' },
+  { id:'bar-discipline', cat:'bar', name:'Discipline', text:'DISCIPLINE', ...BAR, trad:true, note:'Your program. Right sleeve, below the pass crest. Type your discipline on it.' },
   { id:'patch-pass', cat:'patch', name:'Pass crest', text:'PASS', w:6.6, h:9.5, shape:'shield', bg:'#002452', fg:'#EAAA00', border:'#9D1939', trad:true, note:'Right sleeve, below the university motto, after first year.' },
   { id:'trad-year-motto', cat:'patch', name:'Year motto', text:YEAR_MOTTOS[froshYear()] || 'YEAR MOTTO', w:11.4, h:3.8, shape:'scroll', ...MOTTO, trad:true, note:"Top of the left sleeve. Type your year's motto in 'Text on this one'." },
   // Size and look are guesses until Nathaniel measures his; a generic stand-in, not the real crest.

@@ -4,7 +4,7 @@ import { setState, normalize, newJacket, rebuildCatalog, state, isFixed } from '
 import { conflicts } from '../src/fit.js';
 import { SECTIONS, froshYear } from '../src/config.js';
 
-const TRAD = ['trad-qas', 'trad-uni-motto', 'patch-pass', 'trad-year-motto', 'patch-year', 'trad-year-crest'];
+const TRAD = ['trad-qas', 'trad-uni-motto', 'patch-pass', 'bar-discipline', 'trad-year-motto', 'patch-year', 'trad-year-crest'];
 const on = id => state.placed.find(p => p.item === id);
 
 describe('a new jacket', () => {
@@ -15,6 +15,7 @@ describe('a new jacket', () => {
     expect(on('trad-qas').section).toBe('back');
     expect(on('trad-uni-motto').section).toBe('rightSleeve');
     expect(on('patch-pass').section).toBe('rightSleeve');
+    expect(on('bar-discipline').section).toBe('rightSleeve');
     expect(on('trad-year-motto').section).toBe('leftSleeve');
     expect(on('patch-year').section).toBe('leftSleeve');
     expect(on('trad-year-crest').section).toBe('front');
@@ -24,6 +25,7 @@ describe('a new jacket', () => {
   });
   it('stacks the motto above the crest and the year number', () => {
     expect(on('trad-uni-motto').y).toBeLessThan(on('patch-pass').y);
+    expect(on('patch-pass').y).toBeLessThan(on('bar-discipline').y);
     expect(on('trad-year-motto').y).toBeLessThan(on('patch-year').y);
   });
   it('has nothing overlapping or off the edge', () => {

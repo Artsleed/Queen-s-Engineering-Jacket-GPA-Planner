@@ -7,7 +7,10 @@ import { froshYear } from './config.js';
 import { topAt } from './zones.js';
 
 const GAP = 1.5;   // cm between stacked sleeve pieces
-const TOP = 3;     // cm from the shoulder seam to the first sleeve piece (at the outer side)
+// The discipline bar sits right up under the pass crest (Nathaniel). The bar's middle dips
+// 1.2 cm below its box, just under the crest's point, so the box only needs the usual gap.
+const TUCK = 0.3;
+const TOP = 3;    // cm from the shoulder seam to the first sleeve piece (at the outer side)
 const CAP = 1;     // cm clear of the sleeve cap's curve, where it dips toward the underarm
 const BACK_TOP = 7; // cm from the neckline to the top of QUEEN'S (the collar covers the first 5)
 const CREST_IN = 12;  // cm from the front's centre line to the middle of the year crest (over the heart)
@@ -30,6 +33,7 @@ export function traditionalSpots(meas, size){
     'trad-qas':        { section:'back',        x:centred(backW, 'trad-qas'),         y:BACK_TOP },
     'trad-uni-motto':  { section:'rightSleeve', x:centred(sleeveW, 'trad-uni-motto'),  y:first('rightSleeve', 'trad-uni-motto') },
     'patch-pass':      { section:'rightSleeve', x:centred(sleeveW, 'patch-pass'),      y:below('rightSleeve', 'trad-uni-motto') },
+    'bar-discipline':  { section:'rightSleeve', x:centred(sleeveW, 'bar-discipline'),  y:below('rightSleeve', 'trad-uni-motto') + size('patch-pass').h + TUCK },
     'trad-year-motto': { section:'leftSleeve',  x:centred(sleeveW, 'trad-year-motto'), y:first('leftSleeve', 'trad-year-motto') },
     'patch-year':      { section:'leftSleeve',  x:centred(sleeveW, 'patch-year'),      y:below('leftSleeve', 'trad-year-motto') },
     // The front's right half is the wearer's left (the heart side).
