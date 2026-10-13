@@ -1,7 +1,7 @@
 // Checks how the sheet and the presets become the app's catalogue.
 import { describe, it, expect } from 'vitest';
 import bars from '../data/bars.xlsx';
-import { BUILTINS, GROUPS, HIDDEN_GROUPS, groupOf, sheetBarDef } from '../src/catalog.js';
+import { BUILTINS, GROUPS, HIDDEN_GROUPS, groupOf, sheetBarDef, shapeList } from '../src/catalog.js';
 import { setState, normalize, rebuildCatalog, getDef, state } from '../src/state.js';
 import { flagUrl } from '../src/flags.js';
 
@@ -9,8 +9,8 @@ import { flagUrl } from '../src/flags.js';
 const isSheetBar = d => 'type' in d;
 
 describe('catalogue', () => {
-  it('offers every included sheet bar', () => {
-    expect(BUILTINS.filter(isSheetBar).length).toBe(bars.length);
+  it('offers every included sheet bar (one entry per design for bars sewn in several)', () => {
+    expect(BUILTINS.filter(isSheetBar).length).toBe(bars.reduce((n, b) => n + Math.max(1, shapeList(b.shape).length), 0));
   });
   it('gives every item a unique id', () => {
     expect(new Set(BUILTINS.map(d => d.id)).size).toBe(BUILTINS.length);

@@ -1,7 +1,7 @@
 /* ===================== Drawing ===================== */
 // drawPanel is the single renderer for a section: the 2D editor and the 3D
 // textures both use it, so they can never disagree.
-import { clamp, shade } from './util.js';
+import { shade } from './util.js';
 import { state, sel, sectionSize, noGoZones, getDef, dims, textOf } from './state.js';
 import { conflicts } from './fit.js';
 import { leatherLayer, fillGrain, grainCanvas } from './leather.js';
@@ -581,7 +581,6 @@ export function drawPanel(ctx, s, k, o = {}){
   drawSeams(ctx, s, k, W, H, jc);
   for (const z of zones) drawZone(ctx, s, z, k, jc);
   ctx.restore();
-  if (o.labels) for (const z of zones) zoneLabel(ctx, s, z, k);
   if (o.guides) drawGuides(ctx, s, k, W, H);
   const bad = o.conflicts ? conflicts(s) : null;
   for (const p of state.placed){
@@ -672,31 +671,11 @@ function drawZone(ctx, s, z, k, jc){
     ctx.restore();
   }
 }
-function zoneLabel(ctx, s, z, k){
-  const x = z.x*k, y = z.y*k, zw = z.w*k, zh = z.h*k;
-  ctx.save(); ctx.fillStyle = 'rgba(255,255,255,.78)'; ctx.font = `600 ${clamp(k*1.3, 9, 13)}px Archivo, sans-serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  if (z.kind === 'opening'){ ctx.translate(x + zw/2, y + zh*0.45); ctx.rotate(-Math.PI/2); ctx.fillText(z.label, 0, 0); }
-  else if (z.kind === 'vent') return ctx.restore();
-  else if (z.kind === 'pocket'){ ctx.translate((z.top[0] + z.bottom[0])/2*k + k*1.7, (z.top[1] + z.bottom[1])/2*k); ctx.rotate(-Math.PI/2); ctx.fillText(z.label, 0, 0); }
-  else if (z.kind === 'lapel'){ const e = z.outline[1]; ctx.fillText(z.label, (e[0] + z.side*2.6)*k, (z.y + z.h*0.42)*k); }
-  else if (z.kind === 'cutaway'){ ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillText(z.label, x + zw/2, y + Math.min(zh*0.4, k*1.6)); }
-  else ctx.fillText(z.label, x + zw*(s === 'front' && z.kind === 'band' ? 0.25 : 0.5), y + zh/2); // front: clear of the snaps
-  ctx.restore();
-}
+// The sleeves' outer-side line, to centre things on. No part names (Nathaniel: not needed).
 function drawGuides(ctx, s, k, W, H){
-  ctx.save(); const fs = clamp(k*1.3, 9, 12), cuff = state.meas.cuff*k;
-  ctx.font = `600 ${fs}px Archivo, sans-serif`; ctx.fillStyle = 'rgba(0,0,0,.42)'; ctx.textBaseline = 'top';
-  if (s === 'front' || s === 'back'){
-    const L = s === 'front' ? 'Wearer’s right' : 'Wearer’s left', R = s === 'front' ? 'Wearer’s left' : 'Wearer’s right';
-    ctx.textAlign = 'left'; ctx.fillText(L, 8, 8 + k*2); ctx.textAlign = 'right'; ctx.fillText(R, W - 8, 8 + k*2);
-  } else {
-    ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.setLineDash([6, 6]); ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H - cuff); ctx.stroke(); ctx.setLineDash([]);
-    ctx.save(); ctx.translate(W/2 + 6, H*0.45); ctx.rotate(Math.PI/2); ctx.fillText('Outer side', 0, 0); ctx.restore();
-    ctx.textAlign = 'center'; ctx.fillText('Shoulder', W/2, 4);
-    ctx.textBaseline = 'bottom'; ctx.textAlign = 'left'; ctx.fillText('Underarm', 6, H - cuff - 6);
-    ctx.textAlign = 'right'; ctx.fillText('Underarm', W - 6, H - cuff - 6);
-  }
+  if (s === 'front' || s === 'back') return;
+  ctx.save(); const cuff = state.meas.cuff*k;
+  ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.setLineDash([6, 6]); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H - cuff); ctx.stroke();
   ctx.restore();
 }

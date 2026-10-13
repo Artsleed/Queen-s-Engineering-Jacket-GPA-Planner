@@ -34,7 +34,7 @@ export function drawEditor(){
     ctx.stroke();
   }
   ctx.save(); ctx.translate(ed.ox, ed.oy);
-  drawPanel(ctx, current, k, { shadow:true, sheen:true, labels:true, guides:true, conflicts:true, sel:true });
+  drawPanel(ctx, current, k, { shadow:true, sheen:true, guides:true, conflicts:true, sel:true });
   ctx.restore();
   $('#matEmpty').hidden = state.placed.length > 0;
 }

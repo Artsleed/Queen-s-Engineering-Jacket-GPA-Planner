@@ -15,7 +15,7 @@ $('#btnSavePic').onclick = async () => {
   const c = document.createElement('canvas'); c.width = Math.round(w*k + pad*2); c.height = Math.round(h*k + pad*2 + 30);
   const ctx = c.getContext('2d'); ctx.fillStyle = '#2E5B48'; ctx.fillRect(0, 0, c.width, c.height);
   ctx.save(); ctx.translate(pad, pad); const keep = sel; setSel(null);
-  drawPanel(ctx, current, k, { sheen:true, labels:true, guides:true }); setSel(keep); ctx.restore();
+  drawPanel(ctx, current, k, { sheen:true, guides:true }); setSel(keep); ctx.restore();
   ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.font = '600 18px Archivo, sans-serif'; ctx.textBaseline = 'top';
   ctx.fillText(SECTION_LABEL[current], pad, pad + h*k + 10);
   saveFile(`gpa-${current}.png`, await canvasToBlob(c));
