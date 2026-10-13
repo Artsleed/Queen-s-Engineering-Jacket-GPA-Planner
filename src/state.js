@@ -40,7 +40,8 @@ export function normalize(raw){
   // Presets that moved into the sheet keep their placements and edits under the new id.
   const id = x => RENAMED_IDS[x] || String(x);
   if (Array.isArray(raw.items)) s.items = raw.items.filter(d => d && d.id && isFinite(+d.w) && isFinite(+d.h)).map(d => ({...d, id:id(d.id), w:+d.w, h:+d.h}));
-  if (Array.isArray(raw.placed)) s.placed = raw.placed.filter(p => p && p.uid && SECTIONS.includes(p.section)).map(p => ({ uid:String(p.uid), item:id(p.item), section:p.section, x:+p.x||0, y:+p.y||0, rot: (+p.rot===90)?90:0, text: typeof p.text === 'string' ? p.text : null }));
+  // Rotation was removed (Nathaniel), so patches saved turned 90° load upright.
+  if (Array.isArray(raw.placed)) s.placed = raw.placed.filter(p => p && p.uid && SECTIONS.includes(p.section)).map(p => ({ uid:String(p.uid), item:id(p.item), section:p.section, x:+p.x||0, y:+p.y||0, rot:0, text: typeof p.text === 'string' ? p.text : null }));
   // v1 -> v2: jackets now come with the traditional pieces. Add any that aren't on yet.
   // Older plans (v1 had none, v3 had no year crest, and until now they could be moved) all
   // end up with every traditional piece, each in its spot.

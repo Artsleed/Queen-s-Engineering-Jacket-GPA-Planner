@@ -50,7 +50,7 @@ test('adding, overlapping, undoing and reloading a plan', async ({ page }, info)
   // Dragging on the mat moves the selected bar.
   const box = await page.locator('#mat').boundingBox();
   const FW = DEFAULT_MEAS.chest / 2, FH = DEFAULT_MEAS.length; // the default front panel, in cm
-  const k = Math.max(1, Math.min((box.width - 84) / FW, (box.height - 84) / FH));
+  const k = Math.max(1, Math.min((box.width - 48) / FW, (box.height - 48) / FH));
   const ox = Math.round((box.width - FW * k) / 2), oy = Math.round((box.height - FH * k) / 2);
   const cx = box.x + ox + (+x2 + 5) * k, cy = box.y + oy + (+y2 + 1.25) * k;
   await page.mouse.move(cx, cy);

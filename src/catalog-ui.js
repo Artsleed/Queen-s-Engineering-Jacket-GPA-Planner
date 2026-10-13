@@ -167,9 +167,8 @@ export function addChosen(){
     }
     setSel(p.uid); commit(); return;
   }
-  let spot = findSpot(current, d.w, d.h, null, localOutline(d, 0)), rot = 0;
-  if (!spot && d.w !== d.h){ spot = findSpot(current, d.h, d.w, null, localOutline(d, 90)); if (spot) rot = 90; }
-  const p = { uid:newId(), item:d.id, section:current, x:0, y:0, rot, text:null };
+  const spot = findSpot(current, d.w, d.h, null, localOutline(d, 0));
+  const p = { uid:newId(), item:d.id, section:current, x:0, y:0, rot:0, text:null };
   if (spot){ p.x = spot.x; p.y = spot.y; }
   else { const { w } = sectionSize(current); p.x = r1(Math.max(0, (w - d.w)/2)); p.y = 2; toast(`No free space left on the ${SECTION_LABEL[current].toLowerCase()}. It's placed, but overlapping.`); }
   state.placed.push(p); setSel(p.uid);

@@ -81,7 +81,7 @@ export function renderInspector(){
   if (makerOpen()){ el.innerHTML = ''; pv.hidden = false; return; }
   if (!p){
     const d = chosenDef();
-    if (!d){ pv.hidden = true; el.innerHTML = '<p class="insp-empty">Pick something from the list, or tap a patch on the jacket to move, rotate or relabel it.</p>'; return; }
+    if (!d){ pv.hidden = true; el.innerHTML = '<p class="insp-empty">Pick something from the list, or tap a patch on the jacket to move or relabel it.</p>'; return; }
     el.innerHTML = `
       <div class="insp-title"><strong id="pvName"></strong><span class="small muted" id="pvSize"></span></div>
       <p class="small muted pv-cat" id="pvCat"></p>
@@ -108,7 +108,7 @@ export function renderInspector(){
       <div class="insp-title"><strong></strong><span class="small muted"></span></div>
       <p class="status ${why ? 'bad' : 'good'}"></p>
       <p class="small muted insp-fixed"></p>
-      ${TEXT_EDITABLE.has(p.item) ? '<label class="field"><span>Text on this one</span><input type="text" id="iText" maxlength="24"></label>' : ''}`;
+      ${TEXT_EDITABLE.has(p.item) ? '<label class="field"><span>Text on this one</span><input type="text" id="iText" maxlength="48"></label>' : ''}`;
     el.querySelector('strong').textContent = d.name;
     el.querySelector('.insp-title .muted').textContent = `${r1(dm.w)} × ${r1(dm.h)} cm`;
     el.querySelector('.status').textContent = why || 'Fits with room to sew';
@@ -120,14 +120,13 @@ export function renderInspector(){
     <div class="insp-title"><strong></strong><span class="small muted"></span></div>
     <p class="status ${why ? 'bad' : 'good'}"></p>
     <div class="insp-body">
-      <label class="field"><span>Text on this one</span><input type="text" id="iText" maxlength="24"></label>
+      <label class="field"><span>Text on this one</span><input type="text" id="iText" maxlength="48"></label>
       <div class="grid3">
         <label class="field"><span>From left (cm)</span><input type="number" id="iX" step="0.1"></label>
         <label class="field"><span>From top (cm)</span><input type="number" id="iY" step="0.1"></label>
         <label class="field"><span>Section</span><select id="iSec"></select></label>
       </div>
       <div class="row">
-        <button class="btn" id="iRot">Rotate 90°</button>
         <button class="btn" id="iDup">Duplicate</button>
         <button class="btn danger" id="iDel">Remove</button>
       </div>
@@ -149,7 +148,7 @@ export function renderInspector(){
     p.section = to; if (spot){ p.x = spot.x; p.y = spot.y; } else { p.x = 0; p.y = 0; toast(`No free space on the ${SECTION_LABEL[to].toLowerCase()}. It's placed, but overlapping.`); }
     setSection(to, true); commit();
   });
-  $('#iRot').onclick = rotateSel; $('#iDel').onclick = removeSel;
+  $('#iDel').onclick = removeSel;
   $('#iDup').onclick = () => {
     pushHistory(); const spot = findSpot(p.section, dm.w, dm.h, null, localOutline(d, p.rot));
     const q = { ...p, uid:newId(), x:spot ? spot.x : p.x + 1, y:spot ? spot.y : p.y + 1 };
@@ -157,15 +156,6 @@ export function renderInspector(){
     if (!spot) toast('No free space for the copy. It overlaps for now.');
     commit();
   };
-}
-export function rotateSel(){
-  const p = state.placed.find(q => q.uid === sel); if (!p || isFixed(p)) return;
-  pushHistory();
-  const before = dims(p), cx = p.x + before.w/2, cy = p.y + before.h/2;
-  p.rot = p.rot === 90 ? 0 : 90;
-  const after = dims(p), { w, h } = sectionSize(p.section);
-  p.x = r1(clamp(cx - after.w/2, 0, Math.max(0, w - after.w))); p.y = r1(clamp(cy - after.h/2, 0, Math.max(0, h - after.h)));
-  const why = settle(p); commit(); if (why) toast(settleNote(p, why));
 }
 export function removeSel(){
   const p = state.placed.find(q => q.uid === sel); if (!p || isFixed(p)) return;

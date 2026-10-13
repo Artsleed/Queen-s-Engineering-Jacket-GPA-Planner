@@ -65,8 +65,10 @@ function shapePath(ctx, shape, x, y, w, h){
 // From Nathaniel's photos: a blue band, yellow lettering and a yellow line just inside the
 // edge, all on red felt that shows as a border and wraps the small curls at each end.
 function scrollGeom(x, y, w, h){
-  const t = h*0.58, sag = h*0.26, rc = t*0.3; // band thickness; how far its ends drop; curl radius
-  return { x, y, w, h, t, sag, rc, x0:x + w*0.035 + rc*0.6, x1:x + w*0.965 - rc*0.6 };
+  // Proportions from Nathaniel's photo of the university motto: a deep band (thick red edge),
+  // arched so its ends drop, and at each end a ribbon tail that turns down and hooks back under.
+  const t = h*0.46, sag = h*0.26, tw = h*0.17, r = tw*0.7; // band thickness, end drop, tail width, hook radius
+  return { x, y, w, h, t, sag, tw, r, x0:x + w*0.015, x1:x + w*0.985 };
 }
 // The band, shrunk by `ins` all round.
 function bandPath(ctx, S, ins = 0){
@@ -74,25 +76,45 @@ function bandPath(ctx, S, ins = 0){
   ctx.moveTo(x0, S.y + S.sag + ins); ctx.quadraticCurveTo(mid, c + ins, x1, S.y + S.sag + ins);
   ctx.lineTo(x1, S.y + S.sag + S.t - ins); ctx.quadraticCurveTo(mid, c + S.t - ins, x0, S.y + S.sag + S.t - ins); ctx.closePath();
 }
-// Centre of the curl at one end (side -1 left, 1 right), tucked under the band's lower corner.
-const curlAt = (S, side) => [side < 0 ? S.x0 + S.rc*0.15 : S.x1 - S.rc*0.15, S.y + S.sag + S.t - S.rc*0.15];
-function tailPath(ctx, S, side){ const [cx, cy] = curlAt(S, side); ctx.moveTo(cx + S.rc, cy); ctx.arc(cx, cy, S.rc, 0, Math.PI*2); }
+// A tail's centre line (side -1 left, 1 right): down from inside the band's end, then a hook
+// curling in under the band.
+function tailLine(S, side){
+  const left = (px, py) => [side < 0 ? px : S.x + S.w - (px - S.x), py];
+  const xs = S.x0 + S.tw/2, top = S.y + S.sag + S.t*0.45, cx = xs + S.r, cy = S.y + S.h - S.tw/2 - S.r, pts = [];
+  for (let k = 0; k <= 4; k++) pts.push(left(xs, top + (cy - top)*k/4));
+  for (let k = 1; k <= 14; k++){ const a = Math.PI - k/14*Math.PI*0.85; pts.push(left(cx + S.r*Math.cos(a), cy + S.r*Math.sin(a))); }
+  return pts;
+}
+// The tail as a ribbon `half` wide each side of its centre line.
+function tailPath(ctx, S, side, half){
+  const c = tailLine(S, side), n = c.map((p, i) => {
+    const a = c[Math.max(0, i - 1)], b = c[Math.min(c.length - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1;
+    return [-dy/l, dx/l];
+  });
+  c.forEach((p, i) => { const q = [p[0] + n[i][0]*half, p[1] + n[i][1]*half]; i ? ctx.lineTo(...q) : ctx.moveTo(...q); });
+  for (let i = c.length - 1; i >= 0; i--) ctx.lineTo(c[i][0] - n[i][0]*half, c[i][1] - n[i][1]*half);
+  ctx.closePath();
+}
 function drawScroll(ctx, d, text, x, y, w, h, o){
-  const S = scrollGeom(x, y, w, h), fw = S.t*0.15, edge = d.border || '#C8282E', silhouette = () => { ctx.beginPath(); bandPath(ctx, S); tailPath(ctx, S, -1); tailPath(ctx, S, 1); };
+  const S = scrollGeom(x, y, w, h), fw = S.t*0.14, tf = S.tw*0.22, edge = d.border || '#C8282E', line = d.fg || '#F2C230';
+  const silhouette = () => { ctx.beginPath(); bandPath(ctx, S); tailPath(ctx, S, -1, S.tw/2); tailPath(ctx, S, 1, S.tw/2); };
   ctx.save();
   if (!o.mask){ ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = Math.max(1, h*0.12); ctx.shadowOffsetY = Math.max(0.5, h*0.04); }
-  silhouette(); ctx.fillStyle = o.mask ? '#fff' : edge; ctx.fill();
+  silhouette(); ctx.fillStyle = o.mask ? '#fff' : edge; ctx.fill('nonzero');
   ctx.shadowColor = 'transparent';
   if (o.mask){ ctx.restore(); return; }
-  ctx.save(); silhouette(); ctx.clip(); felt(ctx, x, y, w, h, w/d.w); ctx.restore();
-  const im = getImg(d.img), inner = () => { ctx.beginPath(); bandPath(ctx, S, fw); };
-  // The curls: the band's colour rolled up, with the yellow line spiralling in.
+  // The tails, behind the band: red edge, the band's colour a shade darker (it's the back of
+  // the ribbon), and the yellow line running down the middle.
   for (const side of [-1, 1]){
-    const [cx, cy] = curlAt(S, side);
-    ctx.beginPath(); ctx.arc(cx, cy, S.rc - fw*0.8, 0, Math.PI*2); ctx.fillStyle = shade(d.bg, -0.18); ctx.fill();
-    ctx.beginPath(); ctx.arc(cx, cy, (S.rc - fw)*0.55, side < 0 ? Math.PI*0.3 : Math.PI*-0.3, side < 0 ? Math.PI*1.7 : Math.PI*1.3, side > 0);
-    ctx.lineWidth = Math.max(0.8, S.t*0.045); ctx.strokeStyle = d.fg || '#F2C230'; ctx.stroke();
+    ctx.save(); ctx.beginPath(); tailPath(ctx, S, side, S.tw/2); ctx.clip(); felt(ctx, x, y, w, h, w/d.w); ctx.restore();
+    ctx.beginPath(); tailPath(ctx, S, side, S.tw/2 - tf); ctx.fillStyle = shade(d.bg, -0.18); ctx.fill();
+    ctx.beginPath(); tailLine(S, side).forEach((p, i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p));
+    ctx.lineWidth = Math.max(0.6, S.tw*0.09); ctx.strokeStyle = line; ctx.stroke();
   }
+  // The band over them.
+  ctx.beginPath(); bandPath(ctx, S); ctx.fillStyle = edge; ctx.fill();
+  ctx.save(); ctx.beginPath(); bandPath(ctx, S); ctx.clip(); felt(ctx, x, y, w, h, w/d.w); ctx.restore();
+  const im = getImg(d.img), inner = () => { ctx.beginPath(); bandPath(ctx, S, fw); };
   inner(); ctx.fillStyle = d.bg; ctx.fill();
   if (im){
     ctx.save(); inner(); ctx.clip();
@@ -100,15 +122,17 @@ function drawScroll(ctx, d, text, x, y, w, h, o){
     ctx.drawImage(im, x + (w - im.naturalWidth*k)/2, y + (h - im.naturalHeight*k)/2, im.naturalWidth*k, im.naturalHeight*k); ctx.restore();
   } else {
     ctx.save(); inner(); ctx.clip(); felt(ctx, x, y, w, h, w/d.w); ctx.restore();
-    // The yellow line just inside the fw border, satin-stitched.
-    ctx.beginPath(); bandPath(ctx, S, fw + S.t*0.07); ctx.lineWidth = Math.max(0.8, S.t*0.045); ctx.strokeStyle = d.fg || '#F2C230'; ctx.stroke();
+    // The yellow line just inside the red edge, satin-stitched.
+    ctx.beginPath(); bandPath(ctx, S, fw + S.t*0.05); ctx.lineWidth = Math.max(0.8, S.t*0.045); ctx.strokeStyle = line; ctx.stroke();
     satin(ctx, inner, fw*0.5, w/d.w);
   }
   if (text){
-    ctx.save(); ctx.fillStyle = d.fg || '#000';
+    // Bold serif capitals filling the band end to end, as on the real motto. Long text gets
+    // narrower letters first (down to 70%), and only shrinks if that isn't enough.
+    ctx.save(); ctx.fillStyle = line;
     if (!im){ ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = Math.max(0.5, S.t*0.04); ctx.shadowOffsetY = Math.max(0.3, S.t*0.02); }
-    const arch = archOf((S.x1 - S.x0)*0.86, S.sag*0.86);
-    arcText(ctx, text, { cx:x + w/2, cy:y + S.t/2, ...arch, height:S.t*0.36, font:'Archivo, Arial, sans-serif', weight:600, mode:'shrink',
+    const room = S.t - 2*(fw + S.t*0.05), arch = archOf((S.x1 - S.x0) - 2*fw - S.t*0.25, S.sag);
+    arcText(ctx, text, { cx:x + w/2, cy:y + S.t/2, ...arch, height:room*0.62, font:'Georgia, "Times New Roman", serif', weight:700, mode:'shrink', minSqueeze:0.7,
       stroke: im ? { color:'rgba(0,0,0,.65)', width:S.t*0.08 } : null });
     ctx.restore();
   }
@@ -130,6 +154,9 @@ function arcText(ctx, text, a){
   // squeeze narrows each letter (keeping its height) before any tracking is worked out.
   let sx = a.squeeze || 1, track = 0;
   if (a.squeeze){ adv = adv.map(v => v*a.squeeze); total *= a.squeeze; sx = 1; }
+  // minSqueeze: narrow the letters (down to that fraction) before shrinking them.
+  let sq = a.squeeze || 1;
+  if (a.minSqueeze && total > a.len){ const f = Math.max(a.minSqueeze, a.len/total); adv = adv.map(v => v*f); total *= f; sq *= f; }
   if (a.mode === 'stretch') sx = a.len/total;
   else if (total > a.len){ const f = a.len/total; fs *= f; setFont(); adv = adv.map(v => v*f); total *= f; }
   else if (a.mode === 'track' && chars.length > 1) track = (a.len - total)/(chars.length - 1);
@@ -139,7 +166,7 @@ function arcText(ctx, text, a){
     const mid = s + adv[i]*sx/2, phi = curved ? mid/a.R : 0; s += adv[i]*sx + track;
     place.push([c, a.cx + (curved ? a.R*Math.sin(phi) : mid), a.cy + (curved ? a.R*(1 - Math.cos(phi)) : 0) + fs*0.05, phi]);
   });
-  const sq = a.squeeze || 1, each = fn => { for (const [c, px, py, phi] of place){ ctx.save(); ctx.translate(px, py); ctx.rotate(phi); ctx.scale(sx*sq, 1); fn(c); ctx.restore(); } };
+  const each = fn => { for (const [c, px, py, phi] of place){ ctx.save(); ctx.translate(px, py); ctx.rotate(phi); ctx.scale(sx*sq, 1); fn(c); ctx.restore(); } };
   if (a.only === 'fill') return each(c => ctx.fillText(c, 0, 0));
   if (a.only === 'stroke') return each(c => ctx.strokeText(c, 0, 0));
   if (a.stroke){

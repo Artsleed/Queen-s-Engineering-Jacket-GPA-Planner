@@ -1,6 +1,6 @@
 /* ===================== Save picture (the flat section) ===================== */
 import { SECTION_LABEL } from './config.js';
-import { $, r1 } from './util.js';
+import { $ } from './util.js';
 import { current, sel, setSel, sectionSize } from './state.js';
 import { drawPanel } from './draw.js';
 
@@ -17,7 +17,7 @@ $('#btnSavePic').onclick = async () => {
   ctx.save(); ctx.translate(pad, pad); const keep = sel; setSel(null);
   drawPanel(ctx, current, k, { sheen:true, labels:true, guides:true }); setSel(keep); ctx.restore();
   ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.font = '600 18px Archivo, sans-serif'; ctx.textBaseline = 'top';
-  ctx.fillText(`${SECTION_LABEL[current]}  (${r1(w)} × ${r1(h)} cm)`, pad, pad + h*k + 10);
+  ctx.fillText(SECTION_LABEL[current], pad, pad + h*k + 10);
   saveFile(`gpa-${current}.png`, await canvasToBlob(c));
 };
 

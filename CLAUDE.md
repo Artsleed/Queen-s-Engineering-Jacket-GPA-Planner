@@ -118,7 +118,7 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
   - Back: the collar lying on the top (5.5 cm down) and the waistband.
   - Front and back waistband: `sewable` (flags and bars go on it, per Nathaniel's photos), except the snaps by the zipper (`vent` zones).
   - Sleeves: the two sleeve-cap cut-aways, and the snapped cuff vent at each end of the cuff (`CUFF_VENT`; in 3D the vent hangs open). The cuff band itself is `sewable`: bars do get sewn on cuffs (Nathaniel's photo). Fit checks skip sewable zones; they're still drawn.
-- **Rotation** is only 0° or 90°. `dims(p)` returns the rotated bounding box.
+- **No rotation** (Nathaniel removed it): every placement is upright. The `rot` field is still in the state (always 0, and `normalize` sets it to 0 on load), and `dims(p)` still handles 90° should it ever come back.
 
 ### State model
 
@@ -165,7 +165,7 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
 - `drawItem` draws one patch. Shapes are vector paths with a felt texture, an optional flag fill, an optional photo (cover-fit and clipped), a satin-stitched border, and a faux stitch line. Text is auto-fitted and uses the `Graduate` font.
   - Flags: `flag.type 'svg'` draws the country's 4:3 SVG cover-fit into the 5.1 × 3.8 cm (4:3) patch (`FLAG` in `config.js`), then the felt texture and border go on top. Placements store the country code, never the file URL (Vite renames files per build).
   - `arc` (bars): a band curved ends up (a smile), ends cut toward the centre, gold Archivo text along the curve. Geometry from `arcGeom` in `shapes.js`.
-  - `scroll` (mottos): an arched band whose ends curl under, on red felt, with a yellow inner line and yellow text (both mottos look like this in Nathaniel's photos). `YEAR_MOTTOS` in `config.js` holds known year mottos by grad year ('29' so far).
+  - `scroll` (mottos), from Nathaniel's photo of the university motto: a deep arched band with a thick red edge and a yellow line inside it, and at each end a ribbon tail that turns down and hooks back under (`tailLine`/`tailPath`, drawn behind the band, a shade darker, with the yellow line down its middle). Bold serif capitals (Georgia) fill the band end to end; long mottos get narrower letters first (`arcText`'s `minSqueeze`, down to 70%), then smaller. The text box takes up to 48 characters. `YEAR_MOTTOS` in `config.js` holds known year mottos by grad year ('29' so far).
   - `qas` and `chenille` (the back letters and the year number): chenille, rendered once per size into a cached canvas by `drawChenille`. A felt backing grown from each letter with its holes filled (so it shows as an edge and inside O and D; `innerBits` drops glyph pieces that sit inside a hole, like the block in Graduate's 0, so the felt fills the hole), an optional stitched line, then the chenille with a looped texture. Letters are spaced like separate felt pieces (`arcText` `track` mode with `squeeze`), QUEEN'S arched.
   - Dyeing: on the purple (dyed) jacket, chenille items (`qas`, `chenille`) take the dye too: `dyedChenille(color)` in `config.js` swaps them to deep blue on dark purple felt (the year number's yellow line disappears). Embroidered patches (mottos, bars) keep their colours. The undyed colours are what the presets hold.
   - `arcText` modes: `shrink` (keep letter shapes, shrink to fit), `track` (also spread letters to fill), `stretch`; `only: 'fill'|'stroke'`.
@@ -208,8 +208,8 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
   - items off the edge
   - items on no-go zones
   - items overlapping or closer than `meas.gap`
-- `settle(p)` runs after a patch is dragged, nudged, typed into place or rotated: if it ended on a no-go zone or off the panel (`zoneProblem`), it moves to the nearest free spot and a toast says why (`settleNote`). Overlapping another patch is allowed (it's only flagged), since people rearrange in steps.
-- `findSpot(section, w, h, skipUid, local, near)` tries a 0.5 cm grid nearest-first from a per-section anchor (or from `near`) and returns the first free spot. `local` is the item's outline (`localOutline(def, rot)`). On sleeves, sideways moves cost 4× more, so items stack down the outer side. "Add" tries the item rotated if the upright version doesn't fit.
+- `settle(p)` runs after a patch is dragged, nudged or typed into place: if it ended on a no-go zone or off the panel (`zoneProblem`), it moves to the nearest free spot and a toast says why (`settleNote`). Overlapping another patch is allowed (it's only flagged), since people rearrange in steps.
+- `findSpot(section, w, h, skipUid, local, near)` tries a 0.5 cm grid nearest-first from a per-section anchor (or from `near`) and returns the first free spot. `local` is the item's outline (`localOutline(def, rot)`). On sleeves, sideways moves cost 4× more, so items stack down the outer side.
 
 Circles, shields, scrolls and letters still collide by their bounding box, which is conservative.
 
@@ -250,7 +250,7 @@ The visual direction is a green self-healing cutting mat with a cm grid as the w
 - **Fits the window** (Nathaniel: header and footer always in view): at 1181 px wide and 620 px tall or more, the page is exactly the window height; the mat fills the leftover height, the bar list shrinks first so Add stays visible, and the side columns scroll inside themselves. Under 800 px tall the preview shrinks. Narrower or shorter windows scroll as a normal page.
 - **Accessibility:**
   - Keep it responsive down to about 375 px.
-  - Keep keyboard support on the mat: arrows nudge, Shift+arrows nudge 2 cm, R rotates, Delete removes, Esc deselects, Ctrl/Cmd+Z undoes.
+  - Keep keyboard support on the mat: arrows nudge, Shift+arrows nudge 2 cm, Delete removes, Esc deselects, Ctrl/Cmd+Z undoes.
   - Keep focus outlines visible.
 
 ## Known placeholders and limitations
@@ -261,7 +261,7 @@ The visual direction is a green self-healing cutting mat with a cm grid as the w
 - **Traditional pieces** (QUEEN'S/APPLIED/SCIENCE, the "QUIS·DOLOR·CUI·DOLIUM" motto, pass crest, year motto, year number, year crest) start on every new jacket, positioned by `layout.js` (sleeve pieces sit just under the cap's curve). From Nathaniel's photos: chenille back letters on dark red-brown felt; year digits in blue chenille with a red line on yellow felt; the motto scroll blue with yellow text and a red edge. The year digits are blue chenille with a slight yellow edge on red felt (Nathaniel). Still guesses: the year crest (a 10 × 12 cm placeholder shield on the wearer's left chest, 12 cm from the centre line and 18 cm down, per Nathaniel "a big crest … around the heart"), the year number size (12 × 9 cm), the year motto's look, the stacking gaps, and the leather waistband and cuffs. The discipline bar and lower-back pieces aren't pre-placed yet, and traditional pieces aren't in the picker (they're always on the jacket).
 - **Crests are generic placeholder drawings.** Don't recreate the real Queen's or EngSoc logos (they're trademarked). (Uploading a photo of your own patch was removed from the UI; photos already in saved plans still draw.)
 - **Default jacket measurements** are Nathaniel's own GPA, measured flat in inches and converted: chest 127 (25" armpit to armpit), length 66, sleeve 63.5, waistband 7.5, cuff 6.5. Shoulder width (56), neck width (25) and armhole depth (23) are scaled from the chest in `bodyDims`; the collar (5 cm fall, 7.5 cm points) is `LAPEL`/`collarSize`; the cuff slit is 7.6 cm with snaps 5 cm apart. `sleeveCirc` (38) is a guess that Nathaniel is happy with ("looks fine"); leave it unless he raises it. There's no way to change them any more: Nathaniel removed the Jacket size dialog ("the ratios are right and that's all that matters").
-- **Rotation is 0°/90° only.** Collisions use outlines for bars and zones, boxes for other shapes.
+- **No rotation.** Collisions use outlines for bars and zones, boxes for other shapes.
 - **Approximations in the 3D model:** the texture is true to size across the panels, but stretches near the sleeve cap and at the neckline where the piece is cut away. Folds are fixed (they don't react to patches). Seams are drawn and bumped, not modelled as geometry.
 - **Zoom:** the 3D view zooms with the mouse wheel only; Nathaniel removed the +/− buttons and Snapshot. So on phones there's no 3D zoom (no pinch-zoom either), and you can't drag directly from the 3D view.
 - **Auto-placement anchors are simple.** The front anchors at 75% of the width, so patches can land toward the side of the torso.
@@ -277,6 +277,6 @@ Confirm priorities with Nathaniel first.
 2. **Status per item.** Earned, working on it, or wishlist. Summaries like "what fits if I earn everything on my wishlist".
 3. **Custom no-go zones.** Let the user draw pockets or areas to keep clear.
 4. **Smarter auto-arrange.** A packing or optimisation pass that fits a chosen set of items into a section, respecting traditional placements and preferred groupings. This is a self-contained algorithms problem that suits Nathaniel.
-5. **Free rotation,** with shape-accurate collision. Use separating-axis tests, and circle tests for round patches.
+5. ~~Free rotation~~ (Nathaniel removed rotation altogether).
 6. **Share or compare layouts,** for example a frosh group comparing jackets.
 7. **More tests.** Add `normalize` migrations and auto-arrange as they're written.

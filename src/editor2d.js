@@ -5,7 +5,7 @@ import { state, current, sel, sectionSize, dims, isFixed, FIXED_NOTE } from './s
 import { drawPanel } from './draw.js';
 import { pushHistory, commit, liveUpdate, undoStack, updateUndo, toast } from './pipeline.js';
 import { settle, settleNote } from './fit.js';
-import { select, rotateSel, removeSel } from './panels.js';
+import { select, removeSel } from './panels.js';
 
 export const ed = { canvas: $('#mat'), wrap: $('#matWrap'), dpr:1, scale:1, ox:0, oy:0, cw:0, ch:0 };
 ed.ctx = ed.canvas.getContext('2d');
@@ -14,12 +14,12 @@ export function layoutEditor(){
   ed.dpr = Math.min(2, window.devicePixelRatio || 1);
   ed.cw = Math.max(1, r.width); ed.ch = Math.max(1, r.height);
   ed.canvas.width = Math.round(ed.cw*ed.dpr); ed.canvas.height = Math.round(ed.ch*ed.dpr);
-  const { w, h } = sectionSize(current), pad = ed.cw < 500 ? 30 : 42;
+  const { w, h } = sectionSize(current), pad = ed.cw < 500 ? 14 : 24;
   ed.scale = Math.max(1, Math.min((ed.cw - pad*2)/w, (ed.ch - pad*2)/h));
   ed.ox = Math.round((ed.cw - w*ed.scale)/2); ed.oy = Math.round((ed.ch - h*ed.scale)/2);
 }
 export function drawEditor(){
-  const ctx = ed.ctx, k = ed.scale, { w, h } = sectionSize(current);
+  const ctx = ed.ctx, k = ed.scale;
   ctx.setTransform(ed.dpr, 0, 0, ed.dpr, 0, 0);
   ctx.fillStyle = '#2E5B48'; ctx.fillRect(0, 0, ed.cw, ed.ch);
   // cutting-mat grid, aligned to the panel's top-left corner
@@ -36,14 +36,6 @@ export function drawEditor(){
   ctx.save(); ctx.translate(ed.ox, ed.oy);
   drawPanel(ctx, current, k, { shadow:true, sheen:true, labels:true, guides:true, conflicts:true, sel:true });
   ctx.restore();
-  // rulers
-  ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = '500 11px Archivo, sans-serif';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  for (let c = 0; c <= w + 1e-6; c += 10) ctx.fillText(String(c), ed.ox + c*k, ed.oy - 8);
-  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-  for (let c = 0; c <= h + 1e-6; c += 10) ctx.fillText(String(c), ed.ox - 8, ed.oy + c*k);
-  ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillStyle = 'rgba(255,255,255,.5)';
-  ctx.fillText(`${r1(w)} × ${r1(h)} cm`, ed.ox, ed.oy + h*k + 22);
   $('#matEmpty').hidden = state.placed.length > 0;
 }
 function toCm(ev){
@@ -92,7 +84,7 @@ ed.canvas.addEventListener('keydown', ev => {
   const p = state.placed.find(q => q.uid === sel); if (!p) return;
   if (ev.key === 'Escape'){ select(null); return; }
   if (isFixed(p)){
-    if (/^Arrow|^[rR]$|^Delete$|^Backspace$/.test(ev.key)){ ev.preventDefault(); toast(FIXED_NOTE); }
+    if (/^Arrow|^Delete$|^Backspace$/.test(ev.key)){ ev.preventDefault(); toast(FIXED_NOTE); }
     return;
   }
   const step = ev.shiftKey ? 2 : ($('#snap').checked ? SNAP_STEP : 0.1);
@@ -102,6 +94,5 @@ ed.canvas.addEventListener('keydown', ev => {
     const d = dims(p), { w, h } = sectionSize(p.section);
     p.x = r1(clamp(p.x + mv[0], 0, Math.max(0, w - d.w))); p.y = r1(clamp(p.y + mv[1], 0, Math.max(0, h - d.h)));
     const why = settle(p); commit(); if (why) toast(settleNote(p, why));
-  } else if (ev.key === 'r' || ev.key === 'R'){ ev.preventDefault(); rotateSel(); }
-  else if (ev.key === 'Delete' || ev.key === 'Backspace'){ ev.preventDefault(); removeSel(); }
+  } else if (ev.key === 'Delete' || ev.key === 'Backspace'){ ev.preventDefault(); removeSel(); }
 });

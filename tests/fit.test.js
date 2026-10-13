@@ -94,9 +94,9 @@ describe('curved bars', () => {
     load({ placed:[curved('a', 2, 40), curved('b', 14.4, 40)] });
     expect(conflicts('back').size).toBe(0);
   });
-  it('rotate with their outline', () => {
-    load({ placed:[curved('a', 5, 20, 90), curved('b', 5 + 4.1 + 0.3, 20, 90)] });
-    expect(conflicts('back').size).toBe(0);
+  it('load upright even if they were saved turned 90° (rotating was removed)', () => {
+    load({ placed:[curved('a', 5, 20, 90)] });
+    expect(state.placed[0].rot).toBe(0);
   });
 });
 

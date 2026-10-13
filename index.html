@@ -44,12 +44,12 @@
       <div class="colour-pick" role="group" aria-label="Jacket colour" id="leatherPick"></div>
     </div>
     <div class="mat-wrap" id="matWrap">
-      <canvas id="mat" tabindex="0" aria-label="Jacket section. Drag patches to move them. R rotates, Delete removes, arrow keys nudge."></canvas>
+      <canvas id="mat" tabindex="0" aria-label="Jacket section. Drag patches to move them. Delete removes, arrow keys nudge."></canvas>
       <div class="mat-empty" id="matEmpty" hidden>Pick something from the list, then press Add on the right.</div>
     </div>
     <div class="editor-foot">
       <label><input type="checkbox" id="snap" checked> Snap to 0.5 cm</label>
-      <span>Drag to move. R rotates, Delete removes, arrows nudge.</span>
+      <span>Drag to move. Delete removes, arrows nudge.</span>
       <span class="row">
         <button class="btn" id="btnUndo" disabled>Undo</button>
         <button class="btn" id="btnSavePic">Save picture</button>
@@ -87,7 +87,7 @@
           </label>
         </div>
         <label class="field"><span>Name in the list</span><input type="text" id="mkName" maxlength="40" placeholder="e.g. Iron ring"></label>
-        <label class="field"><span>Text on it</span><input type="text" id="mkText" maxlength="24" placeholder="Leave blank for none"></label>
+        <label class="field"><span>Text on it</span><input type="text" id="mkText" maxlength="48" placeholder="Leave blank for none"></label>
         <div class="grid3">
           <label class="field"><span>Background</span><input type="color" id="mkBg"></label>
           <label class="field"><span>Text</span><input type="color" id="mkFg"></label>
