@@ -13,11 +13,17 @@ import { hexToRgb } from './util.js';
 import { JACKET_COLOURS, LITE } from './config.js';
 
 // Each wear or colour change makes a new layer for every section, and the big ones are
-// several MB each, so only a few are kept (dragging the wear slider made dozens).
-const KEEP = LITE ? 5 : 8; // at least one per section (4), or every redraw rebuilds them
-const remember = (map, key, make, max = KEEP) => {
+// several MB each. Phones cap a page's canvas memory and kill the tab past it, so they keep
+// barely more than one per section (4); computers keep more, so scrubbing the wear slider is smooth.
+const KEEP = LITE ? 5 : null;
+// A dropped canvas is shrunk to nothing: Safari frees canvas memory only when it gets round to
+// it, and counts the old ones against the page's limit until then.
+const release = v => { if (v && typeof v.getContext === 'function'){ v.width = v.height = 0; } };
+const remember = (map, key, make, max = 8) => {
   if (map.has(key)){ const v = map.get(key); map.delete(key); map.set(key, v); return v; }
-  const v = make(); map.set(key, v); if (map.size > max) map.delete(map.keys().next().value); return v;
+  const v = make(); map.set(key, v);
+  while (map.size > (KEEP || max)){ const old = map.keys().next().value; release(map.get(old)); map.delete(old); }
+  return v;
 };
 
 /* ----- Cellular noise (tileable) ----- */
@@ -86,7 +92,7 @@ function noise(x, y, s){
 
 /* ----- Fields ----- */
 const FIELD_PX = 6;  // px per cm for the smooth fields (folds, wear, mottling)
-const LAYER_PX = 12; // px per cm for the colour layer (fine enough for the crackle)
+const LAYER_PX = LITE ? 8 : 12; // px per cm for the colour layer (fine enough for the crackle; phones save memory)
 // Per-section fields that depend only on the measurements.
 const fieldCache = new Map();
 function fields(section, m){

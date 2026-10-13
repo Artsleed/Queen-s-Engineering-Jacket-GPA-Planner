@@ -13,7 +13,10 @@ export function layoutEditor(){
   const r = ed.wrap.getBoundingClientRect();
   ed.dpr = Math.min(2, window.devicePixelRatio || 1);
   ed.cw = Math.max(1, r.width); ed.ch = Math.max(1, r.height);
-  ed.canvas.width = Math.round(ed.cw*ed.dpr); ed.canvas.height = Math.round(ed.ch*ed.dpr);
+  // Only when the size changes: resizing reallocates the canvas (on phones that's memory
+  // Safari is slow to give back), and drawEditor repaints all of it anyway.
+  const pw = Math.round(ed.cw*ed.dpr), ph = Math.round(ed.ch*ed.dpr);
+  if (ed.canvas.width !== pw || ed.canvas.height !== ph){ ed.canvas.width = pw; ed.canvas.height = ph; }
   const { w, h } = sectionSize(current), pad = ed.cw < 500 ? 14 : 24;
   ed.scale = Math.max(1, Math.min((ed.cw - pad*2)/w, (ed.ch - pad*2)/h));
   ed.ox = Math.round((ed.cw - w*ed.scale)/2); ed.oy = Math.round((ed.ch - h*ed.scale)/2);

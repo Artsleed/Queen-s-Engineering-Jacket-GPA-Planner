@@ -1,5 +1,5 @@
 /* ===================== Tabs, inspector ===================== */
-import { SECTIONS, SECTION_LABEL, JACKET_COLOURS } from './config.js';
+import { SECTIONS, SECTION_LABEL, JACKET_COLOURS, LITE } from './config.js';
 import { $, clamp, r1, newId } from './util.js';
 import { state, current, sel, setCurrent, setSel, getDef, sectionSize, dims, textOf, isFixed, TEXT_EDITABLE, FIXED_NOTE, setState, newJacket, rebuildCatalog } from './state.js';
 import { GROUP_LABEL, groupOf } from './catalog.js';
@@ -37,9 +37,11 @@ export function buildLeatherPick(){
 // New-to-worn slider. Dragging previews live; letting go saves (one undo step per drag).
 const wear = $('#wear');
 let wearDragging = false;
+// On phones the leather is redrawn only on letting go: each step rebuilds every section's
+// leather, and that many new canvases at once is what runs a phone out of memory.
 wear.addEventListener('input', () => {
   if (!wearDragging){ pushHistory(); wearDragging = true; }
-  state.jacket.wear = +wear.value; liveUpdateAll();
+  state.jacket.wear = +wear.value; if (!LITE) liveUpdateAll();
 });
 wear.addEventListener('change', () => { wearDragging = false; state.jacket.wear = +wear.value; commit(); });
 // Expand the 3D view to fill the window (Esc or the button again to close).

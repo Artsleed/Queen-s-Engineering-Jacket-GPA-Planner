@@ -68,7 +68,8 @@ function choose(id){
 }
 export function drawPreview(d, text = d && d.text){
   const c = $('#itemPreview'), r = c.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
-  c.width = Math.max(1, Math.round(r.width*dpr)); c.height = Math.max(1, Math.round(r.height*dpr));
+  const pw = Math.max(1, Math.round(r.width*dpr)), ph = Math.max(1, Math.round(r.height*dpr));
+  if (c.width !== pw || c.height !== ph){ c.width = pw; c.height = ph; } // resizing reallocates; the fill below repaints it all
   const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = '#2E5B48'; ctx.fillRect(0, 0, r.width, r.height);
   // Margins shrink with the preview (it's short on small laptop screens).

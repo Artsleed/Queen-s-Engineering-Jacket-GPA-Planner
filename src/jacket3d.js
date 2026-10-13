@@ -58,7 +58,7 @@ export function init3D(){
   canvas.addEventListener('webglcontextrestored', () => {
     V.lost = false; $('#viewerFail').style.display = 'none';
     for (const s of SECTIONS) if (V.tex[s]) renderTexture(s);
-    V.swatch.needsUpdate = V.grain.needsUpdate = true; V.dirty = true;
+    V.swatch.image = null; refreshSwatch(); V.grain.needsUpdate = true; V.dirty = true;
   });
   R.setPixelRatio(Math.min(LITE ? 1.5 : 2, window.devicePixelRatio || 1));
   // Neutral tone mapping keeps the patch colours true while taming the highlights.
