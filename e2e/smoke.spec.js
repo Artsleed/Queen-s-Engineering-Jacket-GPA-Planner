@@ -95,6 +95,29 @@ test('searching and filtering the bar list', async ({ page }, info) => {
   expect(info.errors).toEqual([]);
 });
 
+test('your own items can be edited, added and deleted from the list', async ({ page }, info) => {
+  await page.locator('#btnMake').click();
+  await page.locator('#mkName').fill('Iron rnig');
+  await page.locator('#mkSave').click();
+  // Clicking it in the list opens it in the form, ready to fix.
+  await page.locator('#itemList .item', { hasText:'Iron rnig' }).click();
+  await expect(page.locator('#makerTitle')).toHaveText('Edit your item');
+  await expect(page.locator('#mkName')).toHaveValue('Iron rnig');
+  await page.locator('#mkName').fill('Iron ring');
+  await page.locator('#mkAdd').click(); // keeps the change and adds it
+  await expect(page.locator('#inspector strong')).toHaveText('Iron ring');
+  await expect(page.locator('.tab[data-s="front"] .count')).toHaveText('2');
+  await expect(page.locator('#itemList .item', { hasText:'Iron rnig' })).toHaveCount(0);
+  // Deleting it takes it off the jacket too; Undo brings both back.
+  await page.locator('#itemList .item', { hasText:'Iron ring' }).click();
+  await page.locator('#mkDelete').click();
+  await expect(page.locator('.tab[data-s="front"] .count')).toHaveText('1');
+  await expect(page.locator('#itemList .item', { hasText:'Iron ring' })).toHaveCount(0);
+  await page.locator('#btnUndo').click();
+  await expect(page.locator('.tab[data-s="front"] .count')).toHaveText('2');
+  expect(info.errors).toEqual([]);
+});
+
 test('a new jacket has its traditional pieces, and the leather colour switches', async ({ page }, info) => {
   await expect(page.locator('.tab[data-s="front"] .count')).toHaveText('1');
   await expect(page.locator('.tab[data-s="back"] .count')).toHaveText('1');

@@ -4,13 +4,27 @@
 // Sheet bars get the id `wiki-<pageid>`, so renaming a bar in the sheet keeps
 // it on everyone's jacket. Only the name and category reach the app, never how
 // a bar is earned.
-import { PRESETS, BAR } from './config.js';
+import { PRESETS, BAR, FELT_COLOURS } from './config.js';
 import sheetBars from '../data/bars.xlsx';
 import { FLAG_DEFS } from './flags.js';
 
+// A colour cell from the sheet: a name from FELT_COLOURS or a hex code. Blank or unknown
+// gives null (the bar keeps the standard colour; tests/bars-sheet.test.js flags unknowns).
+export function sheetColour(v){
+  const s = String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (/^#[0-9a-f]{6}$/.test(s)) return s;
+  if (/^#[0-9a-f]{3}$/.test(s)) return '#' + [...s.slice(1)].map(c => c + c).join('');
+  return FELT_COLOURS[s] || null;
+}
+// The sheet's colour columns (either spelling of colour works). Blank means the standard bar.
+export const COLOUR_COLS = { bg:'bar_colour', fg:'text_colour', border:'border_colour' };
+const colourCell = (row, col) => row[col] ?? row[col.replace('colour', 'color')];
+
 export function sheetBarDef(row){
   const id = row.pageid ? `wiki-${row.pageid}` : `sheet-${row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-  return { id, cat:'bar', name:row.name, text:row.name.toUpperCase(), ...BAR, note:'', type:row.type || '' };
+  const colours = {};
+  for (const [k, col] of Object.entries(COLOUR_COLS)){ const c = sheetColour(colourCell(row, col)); if (c) colours[k] = c; }
+  return { id, cat:'bar', name:row.name, text:row.name.toUpperCase(), ...BAR, ...colours, note:'', type:row.type || '' };
 }
 
 // Old preset ids that now come from the sheet. normalize() rewrites saved plans to use the new id.

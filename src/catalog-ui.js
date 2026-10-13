@@ -57,9 +57,12 @@ export function buildSelect(keep){
 }
 export function chosenDef(){ return chosenId ? getDef(chosenId) : null; }
 // Choosing from the list shows that item in the right-hand panel (dropping any selected patch).
+// The user's own items open in the maker instead, so a mistake can be fixed or deleted.
 function choose(id){
   chosenId = id;
   for (const b of $('#itemList').querySelectorAll('.item')) b.setAttribute('aria-selected', String(b.dataset.id === id));
+  const d = getDef(id);
+  if (d && groupOf(d) === 'yours') return openMaker(d);
   if (makerOpen()) closeMaker(false);
   if (sel) select(null); else renderInspector();
 }
@@ -91,71 +94,101 @@ $('#itemList').addEventListener('keydown', e => {
 });
 $('#btnMake').onclick = () => openMaker(null);
 
-// "Make your own": a new item from a kind, a shape, a name, text and colours. Its size comes
-// from the shape (the real size of that kind of piece), not from the user.
-const maker = { flagKeep:null };
+// "Make your own": a new item from a kind, a name and colours. The kind sets the shape and
+// size (Nathaniel): a standard curved bar, a round crest, or a flag-sized rectangle.
+// The same form edits one of the user's own items (`maker.editing` is its id).
+const maker = { editing:null };
 const mk = id => $('#' + id);
 export const makerOpen = () => !$('#maker').hidden;
-const SHAPE_SIZE = {
-  arc:{ w:BAR.w, h:BAR.h },        // a standard bar
-  scroll:{ w:11.4, h:3.8 },        // like the mottos
-  shield:{ w:6.6, h:9.5 },         // like the pass crest
-  rect:{ w:8, h:5 }, round:{ w:7, h:6 }, circle:{ w:7, h:7 }, text:{ w:10, h:3 },
+const KIND_SHAPE = {
+  bar:{ shape:'arc', w:BAR.w, h:BAR.h, band:BAR.band },
+  patch:{ shape:'circle', w:7, h:7 },
+  flag:{ shape:'rect', w:FLAG.w, h:FLAG.h },
 };
-const sizeFor = (cat, shape) => cat === 'flag' && shape === 'rect' ? { w:FLAG.w, h:FLAG.h } : SHAPE_SIZE[shape] || SHAPE_SIZE.rect;
-function openMaker(){
-  const d = { cat:'bar', name:'', text:'', ...BAR };
-  $('#makerTitle').textContent = 'Make your own';
-  mk('mkCat').value = d.cat; mk('mkShape').value = d.shape; mk('mkName').value = ''; mk('mkText').value = '';
+function openMaker(edit = null){
+  const d = edit || { cat:'bar', name:'', text:'', ...BAR };
+  maker.editing = edit ? edit.id : null;
+  $('#makerTitle').textContent = edit ? 'Edit your item' : 'Make your own';
+  mk('mkSave').textContent = edit ? 'Save changes' : 'Save item';
+  mk('mkAdd').hidden = mk('mkDelete').hidden = !edit; $('#maker').classList.toggle('editing', !!edit);
+  mk('mkCat').value = KIND_SHAPE[d.cat] ? d.cat : 'bar'; mk('mkName').value = edit ? d.name : '';
   mk('mkBg').value = rgbToHex(d.bg); mk('mkFg').value = rgbToHex(d.fg); mk('mkBorder').value = rgbToHex(d.border);
-  mk('mkFlagDir').value = ''; mk('mkFlagN').value = '3';
-  mk('mkF1').value = '#D52B1E'; mk('mkF2').value = '#FFFFFF'; mk('mkF3').value = '#D52B1E';
+  const stripes = d.flag && (d.flag.type === 'h' || d.flag.type === 'v') ? d.flag : null, sc = stripes ? stripes.colors : [];
+  mk('mkFlagDir').value = stripes ? stripes.type : ''; mk('mkFlagN').value = sc.length === 2 ? '2' : '3';
+  mk('mkF1').value = rgbToHex(sc[0] || '#D52B1E'); mk('mkF2').value = rgbToHex(sc[1] || '#FFFFFF'); mk('mkF3').value = rgbToHex(sc[2] || '#D52B1E');
   $('#maker').hidden = false;
+  refreshAddLabel();
   if (sel) select(null); else renderInspector();
-  syncMaker(); mk('mkName').focus();
+  syncMaker(); if (!edit) mk('mkName').focus();
 }
 export function closeMaker(restore = true){
-  $('#maker').hidden = true;
+  $('#maker').hidden = true; maker.editing = null;
   if (restore) renderInspector();
 }
 function readMaker(){
-  const dir = mk('mkFlagDir').value, n = +mk('mkFlagN').value, cat = mk('mkCat').value, shape = mk('mkShape').value || 'rect';
+  const dir = mk('mkFlagDir').value, n = +mk('mkFlagN').value, cat = mk('mkCat').value;
   const flag = dir ? { type:dir, colors:[mk('mkF1').value, mk('mkF2').value, mk('mkF3').value].slice(0, n) } : null;
+  // The name is also the lettering, in capitals like the sheet bars. Flags carry none.
+  const name = mk('mkName').value.trim();
   return {
-    ...sizeFor(cat, shape), ...(shape === 'arc' ? { band:BAR.band } : {}),
-    id:'c-' + newId(), cat, name:mk('mkName').value.trim() || 'Untitled', text:mk('mkText').value.trim(),
-    shape, bg:mk('mkBg').value, fg:mk('mkFg').value, border:mk('mkBorder').value, note:'', flag,
+    ...(KIND_SHAPE[cat] || KIND_SHAPE.bar),
+    id:maker.editing || 'c-' + newId(), cat, name:name || 'Untitled', text:cat === 'flag' ? '' : name.toUpperCase(),
+    bg:mk('mkBg').value, fg:mk('mkFg').value, border:mk('mkBorder').value, note:'', flag,
   };
 }
 export function syncMaker(){
   $('#flagOpts').hidden = mk('mkCat').value !== 'flag' && !mk('mkFlagDir').value;
   $('#mkF3wrap').hidden = mk('mkFlagN').value === '2';
-  const d = readMaker(); drawPreview(d);
-  $('#makerTitle').textContent = `Make your own · ${r1(d.w)} × ${r1(d.h)} cm`;
+  drawPreview(readMaker());
 }
 $('#maker').addEventListener('input', syncMaker);
 $('#maker').addEventListener('change', syncMaker);
 mk('mkCancel').onclick = () => closeMaker(true);
+// Writes the form into state.items: a new item, or the edited one in place (its id is kept,
+// so every copy already on the jacket changes with it).
+function storeMaker(){
+  const d = readMaker(), i = state.items.findIndex(x => x.id === d.id);
+  if (i >= 0) state.items[i] = d; else state.items.push(d);
+  rebuildCatalog();
+  return d;
+}
 mk('mkSave').onclick = () => {
-  const d = readMaker();
+  const editing = !!maker.editing;
   pushHistory();
-  state.items.push(d);
-  rebuildCatalog(); closeMaker(false);
+  const d = storeMaker(); closeMaker(false);
   $('#itemSearch').value = ''; buildSelect(d.id); // so the saved item is visible
-  toast(`Saved ${d.name}.`);
+  toast(editing ? `Saved your changes to ${d.name}.` : `Saved ${d.name}.`);
+  commit();
+};
+// Add while editing: keep the changes, then add it (one undo step for both).
+mk('mkAdd').onclick = () => {
+  pushHistory();
+  const d = storeMaker(); closeMaker(false);
+  $('#itemSearch').value = ''; buildSelect(d.id);
+  addChosen({ history:false });
+};
+mk('mkDelete').onclick = () => {
+  const id = maker.editing, d = getDef(id); if (!id) return;
+  pushHistory();
+  const before = state.placed.length;
+  state.items = state.items.filter(x => x.id !== id);
+  state.placed = state.placed.filter(p => p.item !== id);
+  const gone = before - state.placed.length;
+  if (sel && !state.placed.some(p => p.uid === sel)) setSel(null);
+  chosenId = null; rebuildCatalog(); closeMaker(false); buildSelect();
+  toast(`Deleted ${d ? d.name : 'it'}${gone ? ` and took ${gone === 1 ? 'it' : `all ${gone}`} off the jacket` : ''}. Undo brings it back.`);
   commit();
 };
 // Traditional pieces go to their own spot (switching section), other items to the current section.
 const homeOf = d => d && d.trad ? traditionalSpots(state.meas, getDef)[d.id] : null;
 export function refreshAddLabel(){
-  const b = $('#btnAdd'); if (!b) return;
-  const home = homeOf(chosenDef());
-  b.textContent = `Add to ${SECTION_LABEL[home ? home.section : current].toLowerCase()}`;
+  const home = homeOf(chosenDef()), label = `Add to ${SECTION_LABEL[home ? home.section : current].toLowerCase()}`;
+  for (const b of [$('#btnAdd'), mk('mkAdd')]) if (b) b.textContent = label;
 }
-export function addChosen(){
+export function addChosen({ history = true } = {}){
   const d = chosenDef(); if (!d) return;
   if (makerOpen()) closeMaker(false);
-  pushHistory();
+  if (history) pushHistory();
   const home = homeOf(d);
   if (home && home.section !== current) setSection(home.section, true);
   if (home){

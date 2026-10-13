@@ -12,6 +12,7 @@ After editing, run `npm test`. It checks the sheet for mistakes, such as a missp
 | `name` | The text shown in the app and printed on the bar. |
 | `type` | `official`, `experimental` (both shenanigans), `academic`, or `skip`. A blank `type` shows as unclassified. |
 | `notes` | Free text for you. It never reaches the app. |
+| `bar_colour`, `text_colour`, `border_colour` | Optional. A colour name (`black`, `white`, `grey`, `silver`, `royal blue`, `blue`, `navy`, `light blue`, `teal`, `green`, `dark green`, `lime`, `red`, `maroon`, `pink`, `purple`, `orange`, `gold`, `yellow`, `brown`, `tan`) or a hex code like `#1E9E4A`. Blank keeps the standard blue bar, gold text and red border. `npm test` flags names it doesn't know. The names and their shades are `FELT_COLOURS` in `src/config.js`. |
 
 You can add your own columns, sort, filter and colour cells. The scraper keeps all of it, and your extra columns reach the app too.
 

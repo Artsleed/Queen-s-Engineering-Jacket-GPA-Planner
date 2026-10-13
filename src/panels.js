@@ -78,7 +78,7 @@ export function renderInspector(){
   const el = $('#inspector'), pv = $('#previewWrap'), p = state.placed.find(q => q.uid === sel);
   // A placed patch is also on the mat, so its preview can be smaller.
   pv.classList.toggle('small-pv', !!p && !makerOpen());
-  if (makerOpen()){ el.innerHTML = ''; pv.hidden = false; return; }
+  if (makerOpen()){ el.innerHTML = ''; pv.hidden = false; refreshAddLabel(); return; }
   if (!p){
     const d = chosenDef();
     if (!d){ pv.hidden = true; el.innerHTML = '<p class="insp-empty">Pick something from the list, or tap a patch on the jacket to move or relabel it.</p>'; return; }

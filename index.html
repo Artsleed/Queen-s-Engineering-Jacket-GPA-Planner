@@ -78,16 +78,10 @@
       <div id="inspector" aria-live="polite"></div>
       <div class="maker" id="maker" hidden>
         <h3 id="makerTitle">Make your own</h3>
-        <div class="grid2">
-          <label class="field"><span>Kind</span>
-            <select id="mkCat"><option value="bar">Bar</option><option value="patch">Patch</option><option value="flag">Flag</option></select>
-          </label>
-          <label class="field"><span>Shape</span>
-            <select id="mkShape"><option value="arc">Curved bar</option><option value="scroll">Scroll</option><option value="rect">Rectangle</option><option value="round">Rounded</option><option value="circle">Circle</option><option value="shield">Shield</option><option value="text">Letters only</option></select>
-          </label>
-        </div>
-        <label class="field"><span>Name in the list</span><input type="text" id="mkName" maxlength="40" placeholder="e.g. Iron ring"></label>
-        <label class="field"><span>Text on it</span><input type="text" id="mkText" maxlength="48" placeholder="Leave blank for none"></label>
+        <label class="field"><span>Kind</span>
+          <select id="mkCat"><option value="bar">Bar</option><option value="patch">Crest</option><option value="flag">Flag</option></select>
+        </label>
+        <label class="field"><span>Name (also the text on it)</span><input type="text" id="mkName" maxlength="40" placeholder="e.g. Iron ring"></label>
         <div class="grid3">
           <label class="field"><span>Background</span><input type="color" id="mkBg"></label>
           <label class="field"><span>Text</span><input type="color" id="mkFg"></label>
@@ -110,6 +104,8 @@
         </div>
         <div class="row">
           <button class="btn primary" id="mkSave">Save item</button>
+          <button class="btn" id="mkAdd" hidden></button>
+          <button class="btn danger" id="mkDelete" hidden>Delete</button>
           <button class="btn" id="mkCancel">Cancel</button>
         </div>
       </div>

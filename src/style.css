@@ -131,6 +131,7 @@ input[type=color]{width:100%;height:36px;border:1px solid var(--line);border-rad
 .btn.wide{width:100%;margin-top:12px}
 .maker{display:grid;gap:10px}
 .maker h3{margin:0;font-size:15px}
+.maker.editing .row{display:grid;grid-template-columns:1fr 1fr}
 .flag-opts{display:grid;gap:10px}
 
 .editor-top{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;margin-bottom:10px}
