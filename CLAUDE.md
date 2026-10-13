@@ -71,6 +71,7 @@ Jacket space is limited. The whole point of the app is deciding what fits and wh
 
 - **Vercel, from GitHub.** Pushing to `main` deploys.
 - **Static only.** There's no backend yet. Plans save to `localStorage` only (Nathaniel removed Export/Import), so a plan lives in one browser.
+- **Error pages.** `public/404.html` (self-contained, styled like the site) is what Vercel serves for unknown addresses. `index.html` has a start-up error screen (`#bootFail`) whose styles and script are inline, so it works when the app's files don't arrive: it shows if a script fails to download, the app throws before `main.js` sets `window.__gpaStarted`, start-up takes over 25 s, or the browser lacks modules (`nomodule`); `<noscript>` covers JavaScript being off. Its "Start over" moves the saved plan to `gpa-planner-v1-backup` first. A saved plan that `normalize` can't read is backed up to the same key (never silently overwritten) and the app starts fresh with a toast. After start-up, errors only toast once.
 - **three.js is pinned to `0.185.1`.** Colour management is on (hex colours are sRGB, canvas textures set `colorSpace = SRGBColorSpace`), lights are physically based, and tone mapping is `NeutralToneMapping` (keeps patch colours true). Upgrading again needs a visual check of the 3D view. The camera controls are hand-written.
 
 ## Architecture
@@ -98,7 +99,7 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
 | `catalog-ui.js` | Item picker (search, category filter, grouped list), preview drawing, "make your own" form, `addChosen` |
 | `panels.js` | Section tabs, the right-hand panel (`renderInspector`), Reset (with a confirm dialog), colour switch, wear slider, expand |
 | `pipeline.js` | `commit` / `liveUpdate` / `liveUpdateAll` / redraw, undo stack, toast |
-| `storage.js` | `localStorage` save and load |
+| `storage.js` | `localStorage` save and load (`readSaved`, `backUpSaved`; a failed save warns once) |
 | `io.js` | Save picture (the flat section as a PNG) |
 | `main.js` | Start-up |
 

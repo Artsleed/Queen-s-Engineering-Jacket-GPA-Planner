@@ -8,8 +8,80 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;900&family=Graduate&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/src/style.css">
+<!-- The start-up error screen. Its styles and script are inline so it works even when the
+     app's own files don't arrive. -->
+<style>
+  .boot-fail{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:#2E5B48;font:15px/1.5 "Archivo","Helvetica Neue",Arial,sans-serif;color:#132039}
+  .boot-fail[hidden]{display:none}
+  .bf-card{max-width:440px;width:100%;background:#fff;border-radius:12px;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.3);border-top:6px solid #EAAA00}
+  .bf-brand{margin:0 0 6px;font:22px/1 "Graduate","Rockwell",serif;color:#002452}
+  .bf-card h2{margin:0 0 8px;font-size:19px}
+  .bf-card p{margin:0 0 14px;color:#3a4659}
+  .bf-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .bf-row button{font:inherit;font-weight:600;padding:9px 14px;border-radius:8px;border:1px solid #CDD5E0;background:#F3F5F8;color:#132039;cursor:pointer}
+  .bf-row button:first-child{background:#002452;border-color:#002452;color:#fff}
+  .bf-card .bf-small{font-size:13px;margin:0}
+  .bf-card a{color:#002452}
+  @media (prefers-color-scheme: dark){
+    .bf-card{background:#101D33;color:#E6ECF5}.bf-card p{color:#9AA9BF}.bf-brand,.bf-card a{color:#EAAA00}
+    .bf-row button{background:#0B1729;border-color:#22355A;color:#E6ECF5}.bf-row button:first-child{background:#EAAA00;border-color:#EAAA00;color:#1C1400}
+  }
+</style>
+<script>
+  // If the app hasn't started (main.js sets window.__gpaStarted), show what went wrong.
+  (function(){
+    var SAVE = 'gpa-planner-v1', BACKUP = 'gpa-planner-v1-backup', shown = false;
+    var TEXT = {
+      error:['The planner couldn’t start', 'Something went wrong while it was starting. Your saved plan is still in this browser.'],
+      download:['Part of the planner didn’t download', 'Check your internet connection, then try again. Your saved plan is still in this browser.'],
+      slow:['The planner is taking a long time to start', 'It may still be loading on a slow connection. Wait a little longer, or try again.'],
+      old:['This browser is too old for the planner', 'Try a recent version of Chrome, Edge, Firefox or Safari.']
+    };
+    function hasSave(){ try { return !!localStorage.getItem(SAVE); } catch (e){ return false; } }
+    function show(kind){
+      if (window.__gpaStarted || shown) return; shown = true;
+      var go = function(){
+        var el = document.getElementById('bootFail'); if (!el) return;
+        document.getElementById('bfTitle').textContent = TEXT[kind][0];
+        document.getElementById('bfMsg').textContent = TEXT[kind][1];
+        document.getElementById('bfReset').hidden = document.getElementById('bfResetNote').hidden = kind === 'old' || !hasSave();
+        el.hidden = false;
+        // A slow start that finishes after all: get out of the way.
+        var t = setInterval(function(){ if (window.__gpaStarted){ el.hidden = true; clearInterval(t); } }, 1000);
+      };
+      if (document.getElementById('bootFail')) go(); else document.addEventListener('DOMContentLoaded', go);
+    }
+    window.__gpaBootFail = show;
+    window.addEventListener('error', function(e){
+      var t = e.target;
+      if (t && t !== window && t.tagName){ if (t.tagName === 'SCRIPT') show('download'); return; } // fonts and images don't matter
+      show('error');
+    }, true);
+    window.addEventListener('unhandledrejection', function(){ show('error'); });
+    setTimeout(function(){ show('slow'); }, 25000);
+    document.addEventListener('DOMContentLoaded', function(){
+      document.getElementById('bfRetry').onclick = function(){ location.reload(); };
+      // Starting over keeps the old plan as a backup, in case it's what stopped the planner.
+      document.getElementById('bfReset').onclick = function(){
+        try { localStorage.setItem(BACKUP, localStorage.getItem(SAVE)); localStorage.removeItem(SAVE); } catch (e){}
+        location.reload();
+      };
+    });
+  })();
+</script>
+<script nomodule>window.__gpaBootFail && window.__gpaBootFail('old');</script>
 </head>
 <body>
+<noscript><div class="boot-fail"><div class="bf-card"><p class="bf-brand">GPA Planner</p><h2>The planner needs JavaScript</h2><p>Turn JavaScript on for this site, then reload the page.</p></div></div></noscript>
+<div class="boot-fail" id="bootFail" hidden role="alert">
+  <div class="bf-card">
+    <p class="bf-brand">GPA Planner</p>
+    <h2 id="bfTitle">The planner couldn’t start</h2>
+    <p id="bfMsg"></p>
+    <div class="bf-row"><button type="button" id="bfRetry">Try again</button><button type="button" id="bfReset">Start over with a new jacket</button></div>
+    <p class="bf-small"><span id="bfResetNote">Starting over keeps your old plan as a backup in this browser. </span>Still stuck? Email <a href="mailto:nathanielfd5@gmail.com?subject=GPA%20Planner%20won%E2%80%99t%20load">nathanielfd5@gmail.com</a> and say which browser you’re using.</p>
+  </div>
+</div>
 <header class="top">
   <div class="brand">
     <h1>GPA Planner</h1>

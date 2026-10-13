@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found · GPA Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&family=Graduate&display=swap" rel="stylesheet">
+<!-- Vercel serves this for any address that isn't part of the site. Self-contained on
+     purpose: it can't rely on the app's files. Colours match src/style.css. -->
+<style>
+  :root{--blue:#002452;--gold:#EAAA00;--mat:#2E5B48;--panel:#fff;--ink:#132039;--muted:#566277;--accent:#002452;--on-accent:#fff}
+  @media (prefers-color-scheme: dark){:root{--panel:#101D33;--ink:#E6ECF5;--muted:#9AA9BF;--accent:#EAAA00;--on-accent:#1C1400}}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--mat);color:var(--ink);font:15px/1.5 "Archivo","Helvetica Neue",Arial,sans-serif}
+  header{background:var(--blue);padding:14px clamp(16px,3vw,28px)}
+  header a{font:clamp(26px,3.4vw,36px)/1 "Graduate","Rockwell",serif;color:var(--gold);text-decoration:none;letter-spacing:.02em}
+  main{flex:1;display:grid;place-items:center;padding:24px 16px;
+    background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);background-size:24px 24px}
+  .card{max-width:440px;width:100%;background:var(--panel);border-radius:12px;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.3);border-top:6px solid var(--gold)}
+  .code{margin:0;font:56px/1 "Graduate","Rockwell",serif;color:var(--gold)}
+  h1{margin:8px 0;font-size:20px}
+  p{margin:0 0 18px;color:var(--muted)}
+  .btn{display:inline-block;font-weight:600;padding:10px 16px;border-radius:8px;background:var(--accent);color:var(--on-accent);text-decoration:none}
+  .btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  footer{color:#fff;opacity:.85;font-size:13px;text-align:center;padding:12px 16px;background:var(--blue)}
+</style>
+</head>
+<body>
+<header><a href="/">GPA Planner</a></header>
+<main>
+  <div class="card">
+    <p class="code">404</p>
+    <h1>That page isn’t on the jacket</h1>
+    <p>There’s nothing at this address. The planner itself is on the home page, and your saved plan is still there.</p>
+    <a class="btn" href="/">Back to the planner</a>
+  </div>
+</main>
+<footer>An unofficial, student-made planner. Not affiliated with or endorsed by Queen’s University.</footer>
+</body>
+</html>

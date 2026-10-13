@@ -179,3 +179,19 @@ test('the wear slider, the big 3D view, and clicking the jacket in 3D', async ({
   await expect(page.locator('#inspector strong')).toHaveText("QUEEN'S APPLIED SCIENCE");
   expect(info.errors).toEqual([]);
 });
+
+test('a damaged saved plan is kept as a backup, and the planner still starts', async ({ page }, info) => {
+  await page.evaluate(() => localStorage.setItem('gpa-planner-v1', '{"v":4, broken'));
+  await page.reload();
+  await expect(page.locator('#toastMsg')).toContainText("couldn't be read");
+  await expect(page.locator('#bootFail')).toBeHidden();
+  expect(await page.evaluate(() => localStorage.getItem('gpa-planner-v1-backup'))).toBe('{"v":4, broken');
+  expect(info.errors.filter(e => !/Saved plan unreadable/.test(e))).toEqual([]);
+});
+
+test('if the app fails to download, an error screen says so', async ({ page, context }) => {
+  await context.route('**/src/main.js', r => r.abort());
+  await page.reload();
+  await expect(page.locator('#bootFail')).toBeVisible();
+  await expect(page.locator('#bfTitle')).toHaveText('Part of the planner didn’t download');
+});

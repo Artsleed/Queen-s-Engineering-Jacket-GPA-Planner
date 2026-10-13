@@ -55,6 +55,7 @@ let toastTimer;
 export function toast(msg, withUndo){
   $('#toastMsg').textContent = msg; $('#toastBtn').hidden = !withUndo;
   $('#toast').classList.add('show'); clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => $('#toast').classList.remove('show'), withUndo ? 6000 : 3200);
+  // Long enough to read: longer messages (the error notes) stay up longer.
+  toastTimer = setTimeout(() => $('#toast').classList.remove('show'), Math.max(withUndo ? 6000 : 3200, msg.length*65));
 }
 $('#toastBtn').onclick = () => { undo(); $('#toast').classList.remove('show'); };
