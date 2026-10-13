@@ -36,6 +36,7 @@ export const rectOutline = (w, h, x = 0, y = 0) => [[x, y], [x + w, y], [x + w, 
 export function coverage(d){
   if (d.shape === 'circle') return Math.PI/4;
   if (d.shape === 'shield') return 0.86;
+  if (d.shape === 'hazard' || d.shape === 'diamond') return 0.5; // a triangle, a square on its point
   if (d.shape === 'scroll') return 0.8;
   if (d.shape === 'arc'){
     const g = arcGeom(d.w, d.h, bandOf(d));

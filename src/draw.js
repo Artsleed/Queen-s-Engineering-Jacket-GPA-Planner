@@ -9,6 +9,7 @@ import { seeded } from './surface.js';
 import { arcGeom, bandOf } from './shapes.js';
 import { dyedChenille } from './config.js';
 import { flagUrl } from './flags.js';
+import { drawSymbol } from './symbols.js';
 
 // Photos load asynchronously; whoever owns redrawing registers a callback here.
 let onImageLoad = () => {};
@@ -58,9 +59,34 @@ function shapePath(ctx, shape, x, y, w, h){
     ctx.quadraticCurveTo(x+w, y+h*0.86, x+w/2, y+h); ctx.quadraticCurveTo(x, y+h*0.86, x, y+h*0.52); ctx.closePath();
   } else if (shape === 'scroll'){ const S = scrollGeom(x, y, w, h); bandPath(ctx, S); tailPath(ctx, S, -1); tailPath(ctx, S, 1); }
   else if (shape === 'qas') ctx.rect(x, y, w, h);
+  else if (shape === 'hazard'){
+    // A warning triangle, point up, with rounded corners.
+    const P = [[x + w/2, y], [x + w, y + h], [x, y + h]], r = m*0.1;
+    ctx.moveTo((P[0][0] + P[2][0])/2, (P[0][1] + P[2][1])/2);
+    for (let i = 0; i < 3; i++) ctx.arcTo(P[i][0], P[i][1], P[(i + 1)%3][0], P[(i + 1)%3][1], r);
+    ctx.closePath();
+  }
+  else if (shape === 'diamond'){
+    // A square on its point, corners slightly rounded.
+    const P = [[x + w/2, y], [x + w, y + h/2], [x + w/2, y + h], [x, y + h/2]], r = m*0.06;
+    ctx.moveTo((P[3][0] + P[0][0])/2, (P[3][1] + P[0][1])/2);
+    for (let i = 0; i < 4; i++) ctx.arcTo(P[i][0], P[i][1], P[(i + 1)%4][0], P[(i + 1)%4][1], r);
+    ctx.closePath();
+  }
   else roundRectPath(ctx, x, y, w, h, m*0.12);
 }
-
+// The box whose shapePath runs `t` in from the shape's edge. For most shapes that's the box
+// shrunk on every side; a triangle shrinks toward its incentre instead, or its slanted
+// sides would come in less than its base.
+function insetBox(shape, x, y, w, h, t){
+  if (shape === 'diamond'){
+    const r = w*h/(2*Math.hypot(w, h)), f = Math.max(0, (r - t)/r), cx = x + w/2, cy = y + h/2;
+    return [cx + (x - cx)*f, cy + (y - cy)*f, w*f, h*f];
+  }
+  if (shape !== 'hazard') return [x + t, y + t, w - 2*t, h - 2*t];
+  const side = Math.hypot(w/2, h), r = w*h/(w + 2*side), f = Math.max(0, (r - t)/r), cx = x + w/2, cy = y + h - r;
+  return [cx + (x - cx)*f, cy + (y - cy)*f, w*f, h*f];
+}
 /* ----- Scroll (mottos): an arched ribbon whose ends curl under ----- */
 // From Nathaniel's photos: a blue band, yellow lettering and a yellow line just inside the
 // edge, all on red felt that shows as a border and wraps the small curls at each end.
@@ -430,17 +456,24 @@ export function drawItem(ctx, d, text, x, y, w, h, o = {}){
     if (im){ const s = Math.max(w/im.naturalWidth, h/im.naturalHeight), iw = im.naturalWidth*s, ih = im.naturalHeight*s; ctx.drawImage(im, x + (w-iw)/2, y + (h-ih)/2, iw, ih); }
     ctx.restore();
     if (!im){
-      const lw = Math.max(1, m*0.09);
-      shapePath(ctx, d.shape, x + lw/2, y + lw/2, w - lw, h - lw);
-      ctx.lineWidth = lw; ctx.strokeStyle = d.border || d.fg; ctx.stroke();
+      const lw = Math.max(1, m*(d.symbol ? 0.07 : 0.09)); // the picture patches have a thinner edge
+      if (d.shape === 'hazard' || d.shape === 'diamond'){
+        // Their rounded corners don't inset evenly, so stroke the real edge, clipped to the inside.
+        ctx.save(); shapePath(ctx, d.shape, x, y, w, h); ctx.clip();
+        ctx.lineWidth = lw*2; ctx.strokeStyle = d.border || d.fg; ctx.stroke(); ctx.restore();
+      } else {
+        shapePath(ctx, d.shape, x + lw/2, y + lw/2, w - lw, h - lw);
+        ctx.lineWidth = lw; ctx.strokeStyle = d.border || d.fg; ctx.stroke();
+      }
       if (m > 14 && !o.mask){
         const inset = lw*1.7;
-        shapePath(ctx, d.shape, x + inset, y + inset, w - inset*2, h - inset*2);
+        shapePath(ctx, d.shape, ...insetBox(d.shape, x, y, w, h, inset));
         ctx.setLineDash([m*0.06, m*0.05]); ctx.lineWidth = Math.max(0.6, m*0.022);
         ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.globalCompositeOperation = 'overlay'; ctx.stroke();
         ctx.setLineDash([]); ctx.globalCompositeOperation = 'source-over';
       }
     }
+    if (d.symbol && !o.mask) drawSymbol(ctx, d, x, y, w, h);
   }
   if (text){
     const maxW = w * ((d.shape === 'circle' || d.shape === 'shield') ? 0.72 : d.shape === 'text' ? 0.98 : 0.84);

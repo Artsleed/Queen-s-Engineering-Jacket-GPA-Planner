@@ -46,6 +46,29 @@ export function froshYear(now = new Date()){ return String((now.getFullYear() + 
 // A standard bar: a 2.9 cm band (`band`) curved with the ends up, so its bounding box is
 // about 12.1 × 4.1 cm. Royal blue felt, red border, gold lettering (from Nathaniel's photos).
 export const BAR = { w:12.1, h:4.1, band:2.9, shape:'arc', bg:'#3556A8', fg:'#F2C230', border:'#C0283A' };
+// What the bars sheet's `shape` column can say, beyond the standard bar (blank or `bar`).
+// The discipline patches are redrawn from the wiki's photos (symbols.js). Their sizes are
+// guesses until Nathaniel measures them: warning triangles 7.6 cm a side, diamonds 7.6 cm
+// across, the Infinitum oval 9 x 7 cm.
+// `noText`: the name isn't printed on it. `symbol`: the picture, in the text colour
+// (`accent` is a second colour).
+const WARNING = { shape:'hazard', w:7.6, h:6.6, bg:'#F5C211', fg:'#151515', border:'#151515', noText:true };
+export const SHEET_SHAPES = {
+  bar:{},
+  'high voltage':{ ...WARNING, symbol:'bolt' },
+  hazard:{ ...WARNING, symbol:'bolt' },          // the first name for High Voltage
+  gear:{ ...WARNING, symbol:'gears' },
+  oxidizing:{ ...WARNING, symbol:'flame' },
+  biohazard:{ ...WARNING, symbol:'biohazard' },
+  'falling rocks':{ ...WARNING, symbol:'rocks' },
+  // The diamonds take the warning signs' yellow and black too (Nathaniel).
+  psi:{ ...WARNING, shape:'diamond', w:7.6, h:7.6, symbol:'psi' },
+  bridge:{ ...WARNING, shape:'diamond', w:7.6, h:7.6, symbol:'bridge' },
+  infinitum:{ shape:'circle', w:9, h:7, bg:'#E9E6DC', fg:'#151515', border:'#151515', accent:'#B3192C', symbol:'infinitum', noText:true },
+  circle:{ shape:'circle', w:7, h:7 },
+  shield:{ shape:'shield', w:6.6, h:9.5 },
+  rectangle:{ shape:'rect', w:8, h:5 },
+};
 // Colour names the bars sheet's colour columns understand (felt and thread shades, not
 // screen-bright CSS colours). The sheet can also give a hex code like #1E9E4A.
 export const FELT_COLOURS = {
