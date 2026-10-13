@@ -195,3 +195,15 @@ test('if the app fails to download, an error screen says so', async ({ page, con
   await expect(page.locator('#bootFail')).toBeVisible();
   await expect(page.locator('#bfTitle')).toHaveText('Part of the planner didn’t download');
 });
+
+test.describe('on a phone', () => {
+  test.use({ viewport:{ width:390, height:844 }, isMobile:true, hasTouch:true, deviceScaleFactor:3 });
+  test('stacks flat view, bar list, item panel, 3D view, with the lighter 3D textures', async ({ page }, info) => {
+    await expect(page.locator('#three')).toBeVisible();
+    const tops = await page.evaluate(() => ['.editor', '.catalog', '.insp-pane', '.viewer'].map(s => document.querySelector(s).getBoundingClientRect().top));
+    expect([...tops].sort((a, b) => a - b)).toEqual(tops);
+    expect(await page.evaluate(async () => (await import('/src/config.js')).LITE)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(info.errors).toEqual([]);
+  });
+});

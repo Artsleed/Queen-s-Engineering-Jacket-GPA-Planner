@@ -105,3 +105,8 @@ export const SECTIONS = ['front','back','leftSleeve','rightSleeve'];
 export const SECTION_LABEL = { front:'Front', back:'Back', leftSleeve:'Left sleeve', rightSleeve:'Right sleeve' };
 export const SNAP_STEP = 0.5;
 export const TEX_PX = 12; // texture pixels per cm for the 3D model
+// Phones and tablets (a touch-first screen, or little memory) get a lighter 3D view:
+// smaller textures and caches. Phone browsers cap a page's canvas and graphics memory and
+// kill the tab past it, which showed as a white screen a moment after the 3D view started.
+export const LITE = typeof window !== 'undefined' && !!window.matchMedia && (
+  matchMedia('(pointer: coarse)').matches || (navigator.deviceMemory || 8) <= 4);

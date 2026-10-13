@@ -10,9 +10,12 @@
 // All cached: they change with the jacket's size, colour or wear, never when a patch moves.
 import { foldsFor, foldHeight, wearPotential, sectionDims, seeded, smooth } from './surface.js';
 import { hexToRgb } from './util.js';
-import { JACKET_COLOURS } from './config.js';
+import { JACKET_COLOURS, LITE } from './config.js';
 
-const remember = (map, key, make, max = 16) => {
+// Each wear or colour change makes a new layer for every section, and the big ones are
+// several MB each, so only a few are kept (dragging the wear slider made dozens).
+const KEEP = LITE ? 5 : 8; // at least one per section (4), or every redraw rebuilds them
+const remember = (map, key, make, max = KEEP) => {
   if (map.has(key)){ const v = map.get(key); map.delete(key); map.set(key, v); return v; }
   const v = make(); map.set(key, v); if (map.size > max) map.delete(map.keys().next().value); return v;
 };

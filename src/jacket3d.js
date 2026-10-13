@@ -10,14 +10,15 @@
 //   surface  R = clearcoat (glossy leather), G = roughness (felt and chenille are matte)
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { SECTIONS, TEX_PX } from './config.js';
+import { SECTIONS, TEX_PX as FULL_TEX_PX, LITE } from './config.js';
 import { $, clamp } from './util.js';
 import { state, sectionSize, noGoZones, getDef, dims, textOf } from './state.js';
 import { drawPanel, drawItem } from './draw.js';
 import { heightLayer, leatherLayer, surfaceLayer, grainCanvas } from './leather.js';
 
 // The bump map is finer than the colour map, so the pebble grain shows up close.
-const BUMP_PX = 20;
+// Texture detail, px per cm. The lite view (phones) uses about a quarter of the memory.
+const TEX_PX = LITE ? 7 : FULL_TEX_PX, BUMP_PX = LITE ? 9 : 20;
 import { buildJacket, applyFolds, VENT, THICK } from './model.js';
 import pkg from '../package.json';
 import { hitTest } from './editor2d.js';
@@ -44,11 +45,22 @@ export function init3D(){
     msg.style.display = 'flex'; return;
   }
   try {
-    V.renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, preserveDrawingBuffer:true });
+    V.renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, preserveDrawingBuffer:!LITE });
   } catch (e){ $('#viewerFail').style.display = 'flex'; return; }
   V.ok = true;
   const R = V.renderer;
-  R.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  // If the device takes the graphics memory back, say so instead of leaving a blank box, and
+  // pick up again when it's returned (three.js rebuilds its side; the textures re-upload).
+  canvas.addEventListener('webglcontextlost', e => {
+    e.preventDefault(); V.lost = true;
+    const msg = $('#viewerFail'); msg.textContent = 'The 3D view stopped because this device ran low on memory. It should come back on its own; if not, reload the page. The flat editor still works.'; msg.style.display = 'flex';
+  });
+  canvas.addEventListener('webglcontextrestored', () => {
+    V.lost = false; $('#viewerFail').style.display = 'none';
+    for (const s of SECTIONS) if (V.tex[s]) renderTexture(s);
+    V.swatch.needsUpdate = V.grain.needsUpdate = true; V.dirty = true;
+  });
+  R.setPixelRatio(Math.min(LITE ? 1.5 : 2, window.devicePixelRatio || 1));
   // Neutral tone mapping keeps the patch colours true while taming the highlights.
   R.toneMapping = THREE.NeutralToneMapping; R.toneMappingExposure = 1;
   R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFShadowMap;
@@ -60,7 +72,7 @@ export function init3D(){
   V.scene.environmentIntensity = 0.38;
   V.scene.add(new THREE.HemisphereLight(0xffffff, 0x3d4350, 0.15));
   const key = new THREE.DirectionalLight(0xfff0dd, 1.7); key.position.set(1.3, 1.9, 2.3);
-  key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 4;
+  key.castShadow = true; key.shadow.mapSize.set(LITE ? 1024 : 2048, LITE ? 1024 : 2048); key.shadow.radius = 4;
   Object.assign(key.shadow.camera, { left:-0.7, right:0.7, top:0.7, bottom:-0.7, near:0.5, far:6 });
   key.shadow.bias = -0.0004; key.shadow.normalBias = 0.012;
   V.scene.add(key);
@@ -71,7 +83,7 @@ export function init3D(){
     const c = document.createElement('canvas'), t = new THREE.CanvasTexture(c);
     if (colour) t.colorSpace = THREE.SRGBColorSpace;
     t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
-    t.anisotropy = R.capabilities.getMaxAnisotropy();
+    t.anisotropy = Math.min(LITE ? 4 : 16, R.capabilities.getMaxAnisotropy());
     return { canvas:c, ctx:c.getContext('2d'), t };
   };
   for (const s of SECTIONS) V.tex[s] = { ...canvasTex(true), bump:canvasTex(false), surf:canvasTex(false), mask:document.createElement('canvas'), tint:document.createElement('canvas') };
@@ -354,7 +366,7 @@ function loop3D(){
     if (Math.abs(d) < 0.002){ V.yaw = V.targetYaw; V.targetYaw = null; } else V.yaw += d*0.14;
     V.dirty = true;
   }
-  if (!V.dirty) return;
+  if (!V.dirty || V.lost) return;
   place(); V.renderer.render(V.scene, V.camera);
   V.dirty = false;
 }

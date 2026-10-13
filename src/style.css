@@ -40,7 +40,14 @@ button,input,select,textarea{font:inherit;color:inherit}
   grid-template-columns:290px minmax(0,1fr) 350px;grid-template-areas:"cat edit side";align-items:start}
 .left{grid-area:cat;display:flex;flex-direction:column;gap:14px;min-height:0}.editor{grid-area:edit}.side{grid-area:side;display:grid;gap:14px}
 @media (max-width:1180px){.layout{grid-template-columns:minmax(0,1fr) 330px;grid-template-areas:"edit side" "cat side"}}
-@media (max-width:760px){.layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"edit" "cat" "side"}}
+/* Phones: one column, in the order you use it (Nathaniel): the flat view, the bar list, the
+   panel for the chosen item, then the 3D view; the feedback box last. The two side columns
+   dissolve (display:contents) so their boxes can be placed one by one. */
+@media (max-width:760px){
+  .layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"edit" "cat" "insp" "view" "fb"}
+  .left,.side{display:contents}
+  .catalog{grid-area:cat}.feedback{grid-area:fb}.insp-pane{grid-area:insp}.viewer{grid-area:view}
+}
 
 /* Wide, tall enough screens: the page is exactly the window, so the header and footer are
    always in view. The mat takes the height that's left; the side columns scroll inside

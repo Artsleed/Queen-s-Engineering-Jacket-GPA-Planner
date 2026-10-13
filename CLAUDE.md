@@ -198,6 +198,7 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
 - **Look:** `LOOK` in `jacket3d.js` (bump, clearcoat, roughness, thickness). Lighting is a `RoomEnvironment` env map plus key (with shadows), fill and rim lights, with `NeutralToneMapping`.
 - **Leather look** (from Nathaniel's close-ups): pebble grain (cellular, ~1.5 mm, bump map at 20 px/cm), cloudy mottling even when new, satin sheen, tan topstitching (`THREAD` in `draw.js`), grey-lavender lining. The colour layer is 12 px/cm; smooth fields are 6 px/cm and sampled bilinearly.
 - **Wear** (`jacket.wear`, the slider on the 3D view) only changes textures (plus crackle in worn patches with the dye left in the cracks, matte where worn via `surfaceLayer`, and a few clustered pale specks when well worn): dye rubbed through at seams, edges, raised folds and elbows (to tan on purple, a darker patina on yellow), scuffs, and more fine creases. Dragging the slider uses `liveUpdateAll()`; letting go commits.
+- **Phones (`LITE` in `config.js`: a touch-first screen or ≤ 4 GB memory):** a lighter 3D view (textures 7 px/cm, bump 9 px/cm, pixel ratio ≤ 1.5, 1024 shadow map, no preserved drawing buffer), and the leather caches keep 5 entries instead of 8. Phone browsers cap a page's canvas/GPU memory and kill the tab past it (a white screen); the caches used to keep 16 per kind, and dragging the wear slider filled them. If the WebGL context is lost anyway, the viewer says so (`webglcontextlost`) and repaints when it's restored.
 - **Rebuilding:** `build3D()` re-runs only when the measurements or colours change (`buildKeyFor()`); wear and patches only repaint textures.
 - **Dev hook:** in `npm run dev`, `window.__V` is the viewer state, so screenshot scripts can set `yaw`/`pitch`/`zoom`, and `look` ([x, y] metres) to pan.
 - **Clicking the model** (`pick3D`): it raycasts, converts the hit UV to section cm, then selects that section and patch. A click on the collar or a lapel selects nothing.
@@ -251,6 +252,7 @@ The visual direction is a green self-healing cutting mat with a cm grid as the w
 - **Fonts:** Graduate (a varsity face) for the title and patch lettering; Archivo for the UI.
 - **Theme:** colours are CSS tokens on `:root`, with dark mode handled through `prefers-color-scheme` and `data-theme`.
 - **Fits the window** (Nathaniel: header and footer always in view): at 1181 px wide and 620 px tall or more, the page is exactly the window height; the mat fills the leftover height, the bar list shrinks first so Add stays visible, and the side columns scroll inside themselves. Under 800 px tall the preview shrinks. Narrower or shorter windows scroll as a normal page.
+- **Phone order** (≤ 760 px, Nathaniel): flat view, bar list, the right-hand panel, 3D view, then the feedback box. `.left` and `.side` become `display:contents` so their boxes are placed one by one.
 - **Accessibility:**
   - Keep it responsive down to about 375 px.
   - Keep keyboard support on the mat: arrows nudge, Shift+arrows nudge 2 cm, Delete removes, Esc deselects, Ctrl/Cmd+Z undoes.
