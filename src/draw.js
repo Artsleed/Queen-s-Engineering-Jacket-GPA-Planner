@@ -446,17 +446,22 @@ export function drawItem(ctx, d, text, x, y, w, h, o = {}){
     const maxW = w * ((d.shape === 'circle' || d.shape === 'shield') ? 0.72 : d.shape === 'text' ? 0.98 : 0.84);
     const face = n => d.font === 'block' ? `900 ${n}px Archivo, "Arial Black", sans-serif` : `${n}px Graduate, Archivo, Impact, sans-serif`;
     let fs = d.shape === 'text' ? h*(d.font === 'block' ? 1.15 : 0.9) : (d.shape === 'circle' || d.shape === 'shield') ? m*0.28 : h*0.5;
+    // A '\n' in the text stacks it in lines (the year crest), each fitted to the same size.
+    const lines = text.split('\n');
     ctx.font = face(fs);
-    const tw = ctx.measureText(text).width;
+    const tw = Math.max(...lines.map(l => ctx.measureText(l).width));
     if (tw > maxW){ fs *= maxW / tw; ctx.font = face(fs); }
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const ty = y + h*(d.shape === 'shield' ? 0.45 : 0.5) + fs*0.05;
-    if (d.shape === 'text' || d.img || (d.flag && d.flag.type)){
-      ctx.save(); ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1, fs*(d.edge ?? (d.font === 'block' ? 0.1 : 0.14))); ctx.strokeStyle = d.shape === 'text' ? d.border : 'rgba(0,0,0,.65)';
-      if (d.shape === 'text' && !o.mask){ ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = fs*0.06; ctx.shadowOffsetY = fs*0.03; }
-      ctx.strokeText(text, x + w/2, ty); ctx.restore();
-    }
-    ctx.fillStyle = d.fg || '#000'; ctx.fillText(text, x + w/2, ty);
+    const ty0 = y + h*(d.shape === 'shield' ? 0.45 : 0.5) + fs*0.05 - (lines.length - 1)*fs*0.55;
+    lines.forEach((line, li) => {
+      const ty = ty0 + li*fs*1.1;
+      if (d.shape === 'text' || d.img || (d.flag && d.flag.type)){
+        ctx.save(); ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1, fs*(d.edge ?? (d.font === 'block' ? 0.1 : 0.14))); ctx.strokeStyle = d.shape === 'text' ? d.border : 'rgba(0,0,0,.65)';
+        if (d.shape === 'text' && !o.mask){ ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = fs*0.06; ctx.shadowOffsetY = fs*0.03; }
+        ctx.strokeText(line, x + w/2, ty); ctx.restore();
+      }
+      ctx.fillStyle = d.fg || '#000'; ctx.fillText(line, x + w/2, ty);
+    });
   }
   ctx.restore();
 }

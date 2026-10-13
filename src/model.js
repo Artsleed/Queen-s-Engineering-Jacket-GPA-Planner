@@ -177,8 +177,12 @@ function torsoColumn(d, T, R, panel, u, half, NV){
       // A column longer than the reference (toward the neck) keeps the reference's rows and takes
       // its extra length in its own top few cm, under the collar. Stretching it all the way down
       // made the rows on the upper back sag in the middle, flattening the QUEEN'S arch.
-      const du = dd - ref.dA, band = Math.min(4, Lu*0.5), start = Lu - band, s0 = Lt - band;
-      col.push(along(up, upCum, Lu >= Lt ? (du <= s0 ? du : s0 + (du - s0)*(Lu - s0)/band) : du <= start ? du : start + (du - start)*band/(Lt - start)));
+      // The stretch eases in (no sudden change of scale at the band's foot), or a straight line
+      // drawn across the band, like the collar's front edge, bends there on the jacket. The
+      // front's band is wider, as its collar edge crosses it on a long slant.
+      const du = dd - ref.dA, band = Math.min(panel === 'front' ? 7 : 4, Lu*0.5), start = Lu - band, s0 = Lt - band;
+      const ease = t => (Lu - Lt)*t*t;
+      col.push(along(up, upCum, Lu >= Lt ? (du <= s0 ? du : du + ease((du - s0)/band)) : du <= start ? du : start + (du - start)*band/(Lt - start)));
     }
   }
   return { col, top:Math.max(0, Lt - Lu) };
@@ -579,7 +583,16 @@ function computeCollarOutline(d){
       const q = k/24, nx = xe + (xn - xe)*q, raw = frontCollarEdge(d, side, q);
       nxs.push(nx); raws.push(raw); fits.push(fit(g, nx, raw, fall + (point - fall)*(1 - smooth(0, 0.4, q))));
     }
-    out.front[side] = smoothed(raws, fits, nxs);
+    // A real collar's front edge runs straight from the shoulder seam to the point (Nathaniel);
+    // the fitted width bends it where the neckline bends, so put each point on that line,
+    // easing back to the fitted edge just by the seam so it still meets the back's corner.
+    const pts = smoothed(raws, fits, nxs), a = pts[0], b = pts[pts.length - 1];
+    const ab = [b[0] - a[0], b[1] - a[1]], ab2 = ab[0]*ab[0] + ab[1]*ab[1];
+    out.front[side] = pts.map((p, k) => {
+      const t = Math.max(0, Math.min(1, ((p[0] - a[0])*ab[0] + (p[1] - a[1])*ab[1])/ab2));
+      const l = [a[0] + ab[0]*t, a[1] + ab[1]*t], w = 1 - smooth(0.8, 1, k/24);
+      return [p[0] + (l[0] - p[0])*w, Math.max(0, p[1] + (l[1] - p[1])*w)];
+    });
   }
   const B = torsoPanel(d, T, 'back', 0, 1, 0, 80, 100), xa = (1 - ns.back)*W, xb = ns.back*W, nxs = [], raws = [], fits = [];
   for (let k = 0; k <= 40; k++){
