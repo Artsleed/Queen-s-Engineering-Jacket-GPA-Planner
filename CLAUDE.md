@@ -98,7 +98,7 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
 | `panels.js` | Section tabs, the right-hand panel (`renderInspector`), Reset (with a confirm dialog), colour switch, wear slider, expand |
 | `pipeline.js` | `commit` / `liveUpdate` / `liveUpdateAll` / redraw, undo stack, toast |
 | `storage.js` | `localStorage` save and load |
-| `io.js` | Save picture, 3D snapshot |
+| `io.js` | Save picture (the flat section as a PNG) |
 | `main.js` | Start-up |
 
 ### Units and coordinates
@@ -219,7 +219,7 @@ Circles, shields, scrolls and letters still collide by their bounding box, which
 - **The list** (`#itemList`) is folders, one per picker group, closed at first; opening one closes the other. While searching, every folder with a match is open. Clicking an item chooses it (right panel); double-click or Enter adds it; Enter in the search box adds the first match. Nothing is chosen until the user picks something.
 - **Header:** only Reset (asks first; keeps the user's own items; undoable).
 - **Make your own** (in the right panel): kind, shape, name, text, colours, and stripes for flags. No size, note or photo fields (Nathaniel); the size comes from the shape (`SHAPE_SIZE` in `catalog-ui.js`: a standard bar, motto-sized scroll, pass-crest-sized shield, flag size for a flag rectangle). Older plans' items with photos still draw them.
-- **Open folders** show about 10 items and scroll inside.
+- **The list box has a fixed height** (set by the window height, not by what's open), so opening a folder or searching never moves the feedback box below it. Open folders show about 10 items and scroll inside; the count line under the list is always there (the total, or the matches while searching).
 
 - **One panel on the right** (`renderInspector`, Nathaniel's design) for seeing, choosing and editing, with the preview at its top. It shows, in this order of priority: the "make your own" form (it lives in that panel); the patch selected on the jacket, with its controls; the item highlighted in the list, with **Add to …**; else a hint. Clicking a list item drops any patch selection; Add places the item and selects it. Enter in the search box or list, and double-click, add directly. The left column is only search, category and the list.
 
@@ -233,8 +233,9 @@ Circles, shields, scrolls and letters still collide by their bounding box, which
 
 The visual direction is a green self-healing cutting mat with a cm grid as the workspace, set against Queen's colours.
 
-- **Jacket leather:** `JACKET_COLOURS` in `config.js`, yellow (undyed) `#BCA66A` and purple (dyed) `#553750`, each with the colour it wears to, matched to Nathaniel's photos. A switch on the 3D view picks one. Nathaniel chose yellow and purple only (no custom colour); older plans with another colour keep it until switched.
+- **Jacket leather:** `JACKET_COLOURS` in `config.js`, yellow (undyed) `#BCA66A` and purple (dyed) `#553750`, each with the colour it wears to, matched to Nathaniel's photos. A two-swatch switch (no text, like a light/dark toggle; names in the tooltip and label) at the right of the section tabs picks one. Nathaniel chose yellow and purple only (no custom colour); older plans with another colour keep it until switched.
 - **Footer:** "A Nathaniel Felsky-Deelstra production" plus the not-affiliated line.
+- **Feedback box:** a small pane under the bar list asks for suggestions, missing bars or mistakes by email, with a `mailto:` link to nathanielfd5@gmail.com (in `index.html`).
 - **Colours:**
 
 | Name | Hex |
@@ -262,7 +263,7 @@ The visual direction is a green self-healing cutting mat with a cm grid as the w
 - **Default jacket measurements** are Nathaniel's own GPA, measured flat in inches and converted: chest 127 (25" armpit to armpit), length 66, sleeve 63.5, waistband 7.5, cuff 6.5. Shoulder width (56), neck width (25) and armhole depth (23) are scaled from the chest in `bodyDims`; the collar (5 cm fall, 7.5 cm points) is `LAPEL`/`collarSize`; the cuff slit is 7.6 cm with snaps 5 cm apart. `sleeveCirc` (38) is a guess that Nathaniel is happy with ("looks fine"); leave it unless he raises it. There's no way to change them any more: Nathaniel removed the Jacket size dialog ("the ratios are right and that's all that matters").
 - **Rotation is 0°/90° only.** Collisions use outlines for bars and zones, boxes for other shapes.
 - **Approximations in the 3D model:** the texture is true to size across the panels, but stretches near the sleeve cap and at the neckline where the piece is cut away. Folds are fixed (they don't react to patches). Seams are drawn and bumped, not modelled as geometry.
-- **Mobile:** no pinch-zoom in 3D (there are +/− buttons instead), and you can't drag directly from the 3D view.
+- **Zoom:** the 3D view zooms with the mouse wheel only; Nathaniel removed the +/− buttons and Snapshot. So on phones there's no 3D zoom (no pinch-zoom either), and you can't drag directly from the 3D view.
 - **Auto-placement anchors are simple.** The front anchors at 75% of the width, so patches can land toward the side of the torso.
 
 ## Suggested backlog

@@ -38,7 +38,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 .layout{display:grid;gap:14px;padding:14px clamp(10px,2vw,22px) 28px;
   grid-template-columns:290px minmax(0,1fr) 350px;grid-template-areas:"cat edit side";align-items:start}
-.catalog{grid-area:cat}.editor{grid-area:edit}.side{grid-area:side;display:grid;gap:14px}
+.left{grid-area:cat;display:flex;flex-direction:column;gap:14px;min-height:0}.editor{grid-area:edit}.side{grid-area:side;display:grid;gap:14px}
 @media (max-width:1180px){.layout{grid-template-columns:minmax(0,1fr) 330px;grid-template-areas:"edit side" "cat side"}}
 @media (max-width:760px){.layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"edit" "cat" "side"}}
 
@@ -60,9 +60,13 @@ button,input,select,textarea{font:inherit;color:inherit}
   /* The bar list gives up height first, so Add stays in view. */
   .catalog{display:flex;flex-direction:column}
   .catalog>*{flex:none}
-  .catalog .picker{flex:1 1 0;display:flex;flex-direction:column}
+  /* The list is only as tall as its folders (it never fills a tall column), up to the space there is. */
+  .left{gap:12px}
+  .catalog{flex:0 1 auto;min-height:0}
+  .feedback{flex:none}
+  .catalog .picker{flex:0 1 auto;min-height:0;display:flex;flex-direction:column}
   .catalog .picker>*{flex:none}
-  .catalog .picker .item-list{flex:1 1 0;min-height:120px;max-height:none}
+  .catalog .picker .item-list{flex:none;height:clamp(200px,calc(100vh - 470px),480px)}
   .side{gap:12px}
   .editor{display:flex;flex-direction:column;min-height:0}
   .mat-wrap{flex:1;height:auto;min-height:0}
@@ -79,6 +83,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 }
 .pane{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-m);padding:14px}
 .pane h2{font-size:16px;margin:0 0 10px;font-weight:700}
+.feedback{padding:10px 14px;font-size:13px;color:var(--muted)}
+.feedback p{margin:0}
+.feedback a{color:var(--ink);font-weight:600;word-break:break-word}
 .muted{color:var(--muted)}
 .small{font-size:13px}
 
@@ -98,7 +105,8 @@ input[type=color]{width:100%;height:36px;border:1px solid var(--line);border-rad
 
 .picker{display:grid;gap:8px}
 /* The bar list: folders (one open at a time), each opening into its items. */
-.item-list{border:1px solid var(--line);border-radius:var(--radius-s);background:var(--field);overflow-y:auto;max-height:420px;padding:4px}
+/* A fixed height, so opening a folder doesn't push the email box below it around. */
+.item-list{border:1px solid var(--line);border-radius:var(--radius-s);background:var(--field);overflow-y:auto;height:420px;padding:4px}
 .grp+.grp{border-top:1px solid var(--line)}
 .grp-h{display:flex;width:100%;align-items:center;gap:8px;border:0;background:none;padding:9px 8px;font-weight:700;font-size:14px;cursor:pointer;text-align:left;border-radius:4px;color:var(--ink)}
 .grp-h::before{content:"";width:0;height:0;border-left:5px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .15s;flex:none}
@@ -111,7 +119,7 @@ input[type=color]{width:100%;height:36px;border:1px solid var(--line);border-rad
 .item:hover{background:var(--panel)}
 .item[aria-selected="true"]{background:var(--accent);color:var(--on-accent)}
 @media (prefers-reduced-motion: reduce){.grp-h::before{transition:none}}
-.picker-count{margin:0}
+.picker-count{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .site-foot{padding:0 clamp(10px,2vw,22px) 24px;text-align:center;font-size:13px;color:var(--muted)}
 .site-foot p{margin:0}
 .site-foot .credit{font-family:var(--display);color:var(--ink);font-size:14px;margin-bottom:4px;letter-spacing:.02em}
@@ -125,7 +133,15 @@ input[type=color]{width:100%;height:36px;border:1px solid var(--line);border-rad
 .maker h3{margin:0;font-size:15px}
 .flag-opts{display:grid;gap:10px}
 
-.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px}
+.editor-top{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+/* Jacket colour: two swatches in a pill, like a light/dark switch. */
+.colour-pick{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--field)}
+.colour-pick button{width:30px;height:30px;padding:0;border:0;border-radius:50%;background:none;cursor:pointer;display:grid;place-items:center}
+.colour-pick button i{width:18px;height:18px;border-radius:50%;background:var(--sw);box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.colour-pick button:hover{background:var(--panel)}
+/* The chosen one is ringed in its own colour (purple for dyed, yellow for undyed). */
+.colour-pick button[aria-pressed="true"]{background:var(--panel);box-shadow:inset 0 0 0 2px var(--sw)}
 .tab{border:1px solid var(--line);background:var(--field);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:600;font-size:14px;display:inline-flex;gap:8px;align-items:center}
 .tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .tab .count{font-size:12px;opacity:.75;font-variant-numeric:tabular-nums}
@@ -146,10 +162,6 @@ input[type=color]{width:100%;height:36px;border:1px solid var(--line);border-rad
 .viewer-top>*{pointer-events:auto}
 .viewer-tools{display:flex;gap:6px;margin-left:auto}
 .viewer-tools .btn{background:var(--panel)}
-.viewer-colour{display:flex;border:1px solid var(--line);border-radius:999px;background:var(--panel);padding:3px;gap:2px}
-.viewer-colour button{border:0;background:none;border-radius:999px;padding:4px 10px 4px 6px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:30px;color:var(--ink)}
-.viewer-colour button i{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.25)}
-.viewer-colour button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
 .viewer-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:8px 12px;border-top:1px solid var(--line)}
 .viewer-hint{margin:0;font-size:13px;color:var(--muted)}
 .wear{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--muted)}

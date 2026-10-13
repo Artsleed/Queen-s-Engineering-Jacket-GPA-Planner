@@ -386,5 +386,3 @@ function pick3D(ev){
 }
 // Renders one frame on demand so the canvas can be saved as a picture.
 export function render3DNow(){ place(); V.renderer.render(V.scene, V.camera); }
-$('#zoomIn').onclick = () => setZoom(V.zoom*0.85);
-$('#zoomOut').onclick = () => setZoom(V.zoom/0.85);

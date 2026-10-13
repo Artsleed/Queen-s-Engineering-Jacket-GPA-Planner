@@ -1,9 +1,8 @@
-/* ===================== Pictures ===================== */
+/* ===================== Save picture (the flat section) ===================== */
 import { SECTION_LABEL } from './config.js';
 import { $, r1 } from './util.js';
 import { current, sel, setSel, sectionSize } from './state.js';
 import { drawPanel } from './draw.js';
-import { V, render3DNow } from './jacket3d.js';
 
 function saveFile(filename, data){
   const blob = data instanceof Blob ? data : new Blob([data]);
@@ -21,8 +20,4 @@ $('#btnSavePic').onclick = async () => {
   ctx.fillText(`${SECTION_LABEL[current]}  (${r1(w)} × ${r1(h)} cm)`, pad, pad + h*k + 10);
   saveFile(`gpa-${current}.png`, await canvasToBlob(c));
 };
-$('#snapshot').onclick = async () => {
-  if (!V.ok) return;
-  render3DNow();
-  saveFile('gpa-3d.png', await canvasToBlob(V.renderer.domElement));
-};
+

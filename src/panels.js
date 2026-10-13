@@ -27,8 +27,8 @@ export function buildLeatherPick(){
   const el = $('#leatherPick'); el.innerHTML = '';
   for (const c of JACKET_COLOURS){
     const b = document.createElement('button'); b.type = 'button'; b.dataset.color = c.color; b.title = c.label;
-    b.innerHTML = '<i aria-hidden="true"></i><span></span>';
-    b.querySelector('i').style.background = c.color; b.querySelector('span').textContent = c.label.split(' ')[0];
+    // Just the swatch (like a light/dark switch); the name is in the label and tooltip.
+    b.innerHTML = '<i aria-hidden="true"></i>'; b.style.setProperty('--sw', c.color);
     b.setAttribute('aria-label', c.label);
     b.onclick = () => { if (state.jacket.color === c.color) return; pushHistory(); state.jacket.color = c.color; commit(); };
     el.append(b);

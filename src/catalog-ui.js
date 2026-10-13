@@ -51,8 +51,8 @@ export function buildSelect(keep){
     }
     L.append(box); shown += list.length;
   }
-  $('#itemCount').textContent = q ? (shown ? `${shown} ${shown === 1 ? 'match' : 'matches'}` : 'Nothing matches. Try another word, or make your own.') : '';
-  $('#itemCount').hidden = !q;
+  // Always one line (the total, or the matches while searching), so nothing below it jumps.
+  $('#itemCount').textContent = q ? (shown ? `${shown} ${shown === 1 ? 'match' : 'matches'}` : 'Nothing matches. Try another word, or make your own.') : `${all.length} to choose from`;
   renderInspector(); // the right-hand panel shows the chosen item, unless a patch is selected
 }
 export function chosenDef(){ return chosenId ? getDef(chosenId) : null; }

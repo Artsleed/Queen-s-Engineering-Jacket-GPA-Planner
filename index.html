@@ -23,18 +23,26 @@
 <div class="tricolour" aria-hidden="true"></div>
 
 <main class="layout">
-  <section class="pane catalog" aria-labelledby="catTitle">
-    <h2 id="catTitle">Add to the jacket</h2>
-    <div class="picker">
-      <label class="field"><span>Search</span><input type="search" id="itemSearch" placeholder="Bar, patch or flag name" autocomplete="off" aria-controls="itemList"></label>
-      <div class="item-list" id="itemList" aria-label="Bars, patches and flags"></div>
-      <p class="small muted picker-count" id="itemCount" aria-live="polite"></p>
-      <button class="btn" id="btnMake" type="button">Make your own…</button>
-    </div>
-  </section>
+  <div class="left">
+    <section class="pane catalog" aria-labelledby="catTitle">
+      <h2 id="catTitle">Add to the jacket</h2>
+      <div class="picker">
+        <label class="field"><span>Search</span><input type="search" id="itemSearch" placeholder="Bar, patch or flag name" autocomplete="off" aria-controls="itemList"></label>
+        <div class="item-list" id="itemList" aria-label="Bars, patches and flags"></div>
+        <p class="small muted picker-count" id="itemCount" aria-live="polite"></p>
+        <button class="btn" id="btnMake" type="button">Make your own…</button>
+      </div>
+    </section>
+    <aside class="pane feedback" aria-label="Suggestions">
+      <p>Got a suggestion, a missing bar, or something that looks wrong? Email me <a href="mailto:nathanielfd5@gmail.com?subject=GPA%20Planner">HERE</a>.</p>
+    </aside>
+  </div>
 
   <section class="pane editor" aria-label="Section editor">
-    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="editor-top">
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <div class="colour-pick" role="group" aria-label="Jacket colour" id="leatherPick"></div>
+    </div>
     <div class="mat-wrap" id="matWrap">
       <canvas id="mat" tabindex="0" aria-label="Jacket section. Drag patches to move them. R rotates, Delete removes, arrow keys nudge."></canvas>
       <div class="mat-empty" id="matEmpty" hidden>Pick something from the list, then press Add on the right.</div>
@@ -53,11 +61,7 @@
     <div class="pane viewer">
       <canvas id="three" aria-label="3D preview of the jacket. Drag to spin."></canvas>
       <div class="viewer-top">
-      <div class="viewer-colour" role="group" aria-label="Jacket colour" id="leatherPick"></div>
       <div class="viewer-tools">
-        <button class="btn icon" id="zoomOut" aria-label="Zoom out">−</button>
-        <button class="btn icon" id="zoomIn" aria-label="Zoom in">+</button>
-        <button class="btn" id="snapshot">Snapshot</button>
         <button class="btn icon" id="expand" aria-label="Expand the 3D view" aria-pressed="false" title="Expand">&#x2922;</button>
       </div>
       </div>
