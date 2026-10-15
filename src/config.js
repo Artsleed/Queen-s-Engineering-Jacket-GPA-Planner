@@ -52,9 +52,9 @@ export const BAR = { w:12.1, h:4.1, band:2.9, shape:'arc', bg:'#3556A8', fg:'#F2
 // across, the Infinitum oval 9 x 7 cm.
 // `noText`: the name isn't printed on it. `symbol`: the picture, in the text colour
 // (`accent` is a second colour).
-// A street sign like Ontario's: a thin green rectangle, white border just inside the edge,
-// white capitals. The size is a guess (a bar's length) until Nathaniel measures one.
-const STREET_SIGN = { shape:'sign', w:12.1, h:2.5, bg:'#1F6B3E', fg:'#FFFFFF', border:'#FFFFFF' };
+// A street sign (Nathaniel's photo): green, white border in from the edge, white capitals,
+// a street type at the end (ST, AVE...) small and raised. 4:1 like the photo; the size is a guess. The size is a guess (a bar's length) until Nathaniel measures one.
+const STREET_SIGN = { shape:'sign', w:12.1, h:3, bg:'#2B7A4E', fg:'#FFFFFF', border:'#FFFFFF' };
 const WARNING = { shape:'hazard', w:7.6, h:6.6, bg:'#F5C211', fg:'#151515', border:'#151515', noText:true };
 export const SHEET_SHAPES = {
   bar:{},
@@ -100,7 +100,7 @@ export const PRESETS = [
   { id:'trad-year-crest', cat:'patch', name:'Year crest', text:'YEAR\nCREST', w:13, h:15.6, shape:'shield', bg:'#002452', fg:'#EAAA00', border:'#9D1939', trad:true, note:"Front, over the heart (wearer's left)." },
   { id:'patch-year', cat:'patch', name:'Year number', text:froshYear(), w:12, h:9, shape:'chenille', ...BACK_LETTERS, trad:true, note:'Left sleeve, below the year motto: the last two digits of your graduating year.' },
   // `group` lists it in the picker under that group (catalog.js GROUPS).
-  { id:'sign-street', cat:'patch', name:'Street sign', text:'STREET NAME', ...STREET_SIGN, group:'academic', note:"Type the street on it in 'Text on this one'." },
+  { id:'sign-street', cat:'patch', name:'Street sign', text:'N MAPLE ST', ...STREET_SIGN, group:'academic', note:"Type the street on it in 'Text on this one'." },
   // Patches
   { id:'patch-dept', cat:'patch', name:'Department crest', text:'ECE', w:7, h:7, shape:'circle', bg:'#FFFFFF', fg:'#002452', border:'#002452', note:'' },
   { id:'patch-club', cat:'patch', name:'Club patch', text:'CLUB', w:7, h:6, shape:'round', bg:'#132039', fg:'#FFFFFF', border:'#EAAA00', note:'Stand-in for a team or club patch.' },

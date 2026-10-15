@@ -432,27 +432,45 @@ function drawFlag(ctx, f, x, y, w, h){
     ctx.closePath(); ctx.fill();
   }
 }
-// A street sign (Ontario style): green felt, a white line just inside the edge, white
-// capitals in a plain bold sans like road signs, squeezed narrower before shrinking.
+// A street sign (from Nathaniel's photo): green, rounded corners, a white line in from the
+// edge, the name in tall narrow capitals (Overpass, a free font modelled on highway-sign
+// lettering, squeezed), and a street type at the end ("N MAPLE ST") small and raised at the right.
+const SIGN_SUFFIX = /^(ST|AVE?|RD|DR|BLVD|CRES|CRT|CT|LN|PL|WAY|TER|TERR|PKWY|HWY|SQ|CIR|GDNS|GROVE)\.?$/;
 function drawSign(ctx, d, text, x, y, w, h, o){
-  const r = h*0.12, lw = Math.max(0.6, h*0.06), inset = h*0.1;
+  const r = h*0.1, lw = Math.max(0.6, h*0.045), inset = h*0.08;
   ctx.save();
-  roundRectPath(ctx, x, y, w, h, r);
+  ctx.beginPath(); roundRectPath(ctx, x, y, w, h, r);
   if (o.mask){ ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore(); return; }
   ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = Math.max(1, h*0.12); ctx.shadowOffsetY = Math.max(0.5, h*0.04);
   ctx.fillStyle = d.bg; ctx.fill(); ctx.shadowColor = 'transparent';
-  ctx.save(); roundRectPath(ctx, x, y, w, h, r); ctx.clip(); if (d.w) felt(ctx, x, y, w, h, w/d.w); ctx.restore();
-  roundRectPath(ctx, x + inset, y + inset, w - 2*inset, h - 2*inset, Math.max(0, r - inset*0.5));
+  ctx.save(); ctx.beginPath(); roundRectPath(ctx, x, y, w, h, r); ctx.clip(); if (d.w) felt(ctx, x, y, w, h, w/d.w); ctx.restore();
+  // The border and letters are raised, so they cast a slight shadow.
+  ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = h*0.03; ctx.shadowOffsetY = h*0.015;
+  ctx.beginPath(); roundRectPath(ctx, x + inset, y + inset, w - 2*inset, h - 2*inset, r*0.6);
   ctx.lineWidth = lw; ctx.strokeStyle = d.border || d.fg; ctx.stroke();
-  if (text){
-    const line = text.replace(/\n/g, ' '), maxW = w - inset*6;
-    let fs = h*0.56;
-    const face = n => `700 ${n}px Archivo, "Arial Narrow", Arial, sans-serif`;
-    ctx.font = face(fs);
-    const tw = ctx.measureText(line).width, sx = Math.max(0.75, Math.min(1, maxW/tw));
-    if (tw*sx > maxW){ fs *= maxW/(tw*sx); ctx.font = face(fs); }
-    ctx.translate(x + w/2, y + h/2 + fs*0.04); ctx.scale(sx, 1);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = d.fg; ctx.fillText(line, 0, 0);
+  const words = text ? text.replace(/\n/g, ' ').toUpperCase().trim().split(/\s+/) : [];
+  if (words.length && words[0]){
+    const suffix = words.length > 1 && SIGN_SUFFIX.test(words[words.length - 1]) ? words.pop().replace('.', '') : '';
+    const name = words.join(' '), pad = h*0.3, room = w - 2*pad, SQ = 0.8; // letters squeezed to 80% width
+    const face = n => `600 ${n}px Overpass, "Arial Narrow", Arial, sans-serif`;
+    let fs = h*0.84, sfs = fs*0.5;
+    ctx.font = face(fs); const nw = ctx.measureText(name).width*SQ;
+    ctx.font = face(sfs); const sw = suffix ? ctx.measureText(suffix).width*SQ : 0;
+    const gap = suffix ? h*0.5 : 0, need = nw + gap + sw;
+    let f = 1, sx = SQ;
+    if (need > room){ const s2 = Math.max(0.75, room/need); sx = SQ*s2; f = Math.min(1, room/(need*s2)); } // narrower first, then smaller
+    fs *= f; sfs *= f;
+    const cap = fs*0.7, base = y + h/2 + cap/2;   // centre the name's capitals in the sign
+    ctx.textBaseline = 'alphabetic'; ctx.fillStyle = d.fg;
+    const put = (t, size, px, align) => { ctx.save(); ctx.font = face(size); ctx.textAlign = align; ctx.translate(px, 0); ctx.scale(sx, 1); ctx.fillText(t, 0, 0); ctx.restore(); };
+    ctx.save(); ctx.translate(0, base);
+    if (suffix){
+      // Like the real signs: the name from the left, the street type at the far right.
+      put(name, fs, x + pad, 'left');
+      ctx.translate(0, -cap + sfs*0.7); // the street type's top lines up with the name's
+      put(suffix, sfs, x + w - pad, 'right');
+    } else put(name, fs, x + w/2, 'center');
+    ctx.restore();
   }
   ctx.restore();
 }
