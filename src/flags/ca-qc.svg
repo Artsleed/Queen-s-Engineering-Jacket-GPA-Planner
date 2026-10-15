@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="640" height="480" viewBox="0 0 640 480">
+  <!-- Quebec (the Fleurdelisé), drawn for this app in flag-icons' 4:3 size: a white cross on blue, an upright white fleur-de-lis in each quarter. -->
+  <defs>
+    <g id="fl" fill="#fff">
+      <path d="M0-62C16-44 20-22 9 4H-9C-20-22-16-44 0-62Z"/>
+      <path d="M7 4C9-22 26-38 44-34 58-31 60-12 48-6 40-2 31-7 34-15 37-21 31-25 26-21 18-15 15-4 15 4Z"/>
+      <path d="M-7 4C-9-22-26-38-44-34-58-31-60-12-48-6-40-2-31-7-34-15-37-21-31-25-26-21-18-15-15-4-15 4Z"/>
+      <rect x="-28" y="5" width="56" height="10" rx="2"/>
+      <path d="M-8 16H8C9 30 18 40 30 44 18 49 6 45 0 36-6 45-18 49-30 44-18 40-9 30-8 16Z"/>
+    </g>
+  </defs>
+  <rect width="640" height="480" fill="#003da5"/>
+  <rect x="282" width="76" height="480" fill="#fff"/>
+  <rect y="202" width="640" height="76" fill="#fff"/>
+  <use xlink:href="#fl" x="141" y="104"/>
+  <use xlink:href="#fl" x="499" y="104"/>
+  <use xlink:href="#fl" x="141" y="380"/>
+  <use xlink:href="#fl" x="499" y="380"/>
+</svg>

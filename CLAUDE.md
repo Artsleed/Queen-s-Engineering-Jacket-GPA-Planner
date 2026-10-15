@@ -81,7 +81,7 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
 | File | Contents |
 |---|---|
 | `config.js` | Default measurements, `JACKET_COLOURS`, `BAR`, `PRESETS`, `FRONT` (pocket sizes), section names, constants |
-| `flags.js` | `FLAG_DEFS` (every country's flag, from the `flag-icons` package, ids `flag-<code>`), `flagUrl(code)`. No DOM. |
+| `flags.js` | `FLAG_DEFS` (every country's flag, from the `flag-icons` package, ids `flag-<code>`, plus ones it lacks drawn by us in `src/flags/<code>.svg`: Quebec, `ca-qc`), `flagUrl(code)`. No DOM. |
 | `catalog.js` | `BUILTINS` (presets, every sheet bar, every flag), picker `GROUPS` (official, experimental, academic, flags, not sorted, made by you) and `HIDDEN_GROUPS` (traditional, generic bars, patches: not in the picker), `groupOf`, `RENAMED_IDS`. No DOM. |
 | `util.js` | Small helpers (`$`, `clamp`, colour functions) |
 | `state.js` | State, `normalize`, `newJacket`, catalogue, section sizes, `noGoZones`. No DOM. |
@@ -141,13 +141,14 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
 
 ```js
 { id, cat: 'bar'|'patch'|'flag', name, text, w, h,
-  shape: 'arc'|'rect'|'round'|'circle'|'shield'|'hazard'|'diamond'|'text'|'scroll'|'qas'|'chenille',
+  shape: 'arc'|'rect'|'round'|'circle'|'shield'|'hazard'|'diamond'|'sign'|'text'|'scroll'|'qas'|'chenille',
   band?,             // arc only: the band's thickness in cm (h is the curved bounding box)
   bg, fg, border, note,
   backing?,          // chenille ('qas', 'chenille'): the felt backing colour; `border` is the stitched line
   edge?,             // 'text' shape: outline width as a fraction of font size
   symbol?, accent?,  // a picture on the patch in its text colour, plus a second colour (symbols.js)
   trad?: true,       // traditional piece: on every new jacket, not in the picker
+  group?,            // preset only: the picker group it's listed under (else by `cat`)
   flag?: { type: 'svg', code } | { type: 'h'|'v'|'disc'|'canada', colors: [...] }, // svg: a flag-icons country code
   img?: dataURL }
 ```
@@ -170,6 +171,7 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
   - `arc` (bars): a band curved ends up (a smile), ends cut toward the centre, gold Archivo text along the curve. Geometry from `arcGeom` in `shapes.js`.
   - `scroll` (mottos), from Nathaniel's photo of the university motto: a deep arched band with a thick red edge and a yellow line inside it, and at each end a ribbon tail that turns down and hooks back under (`tailLine`/`tailPath`, drawn behind the band, a shade darker, with the yellow line down its middle). Bold serif capitals (Georgia) fill the band end to end; long mottos get narrower letters first (`arcText`'s `minSqueeze`, down to 70%), then smaller. The text box takes up to 48 characters. `YEAR_MOTTOS` in `config.js` holds known year mottos by grad year ('29' so far).
   - `qas` and `chenille` (the back letters and the year number): chenille, rendered once per size into a cached canvas by `drawChenille`. A felt backing grown from each letter with its holes filled (so it shows as an edge and inside O and D; `innerBits` drops glyph pieces that sit inside a hole, like the block in Graduate's 0, so the felt fills the hole), an optional stitched line, then the chenille with a looped texture. Letters are spaced like separate felt pieces (`arcText` `track` mode with `squeeze`), QUEEN'S arched.
+  - `sign` (street signs, Ontario style, `drawSign`): a thin green rounded rectangle with a white line just inside the edge and white bold sans capitals, squeezed to 75% before shrinking. The `Street sign` preset (12.1 × 2.5 cm, a guess) is listed under Academic & extracurricular; the sheet's `shape` column can say `street sign` too.
   - Dyeing: on the purple (dyed) jacket, chenille items (`qas`, `chenille`) take the dye too: `dyedChenille(color)` in `config.js` swaps them to deep blue on dark purple felt. Embroidered patches (mottos, bars) keep their colours. The undyed colours are what the presets hold.
   - `arcText` modes: `shrink` (keep letter shapes, shrink to fit), `track` (also spread letters to fill), `stretch`; `only: 'fill'|'stroke'`.
   - `opts.mask` draws the footprint in white, for the 3D bump and surface maps.
@@ -261,7 +263,7 @@ The visual direction is a green self-healing cutting mat with a cm grid as the w
 
 ## Known placeholders and limitations
 
-- **The bar list comes from `data/bars.xlsx`.** Every bar is a standard curved bar (2.9 cm band, 12.1 × 4.1 cm box): blue felt, red border, gold text, matched to Nathaniel's sleeve photo. Per-bar colours come from the optional sheet columns `bar_colour`, `text_colour`, `border_colour` (a `FELT_COLOURS` name or a hex code; `sheetColour` in `catalog.js`); an optional `shape` column picks a look from `SHEET_SHAPES` in `config.js` (blank: the standard bar; the discipline patches `high voltage` (old name `hazard`), `gear`, `oxidizing`, `biohazard`, `falling rocks` on a yellow warning triangle (`hazard` shape), `psi` and `bridge` on a `diamond`, `infinitum` on an oval; plain `circle`, `shield`, `rectangle`). A cell can list several (`oxidizing / biohazard`): `sheetBarDefs` makes one entry each, the first keeping the row's id and the rest `wiki-<pageid>-<shape>`. Their sizes are guesses. Wiki photos may be looked at as a reference for drawing a design, never shipped. The sheet's table is an Excel query table, which ExcelJS can't write back without breaking it (it drops the query and turns the header row off), so add columns in Excel, not from code. Sheet rows that are really patches, such as EngSoc Crest, draw as bars for now.
+- **The bar list comes from `data/bars.xlsx`.** Every bar is a standard curved bar (2.9 cm band, 12.1 × 4.1 cm box): blue felt, red border, gold text, matched to Nathaniel's sleeve photo. Per-bar colours come from the optional sheet columns `bar_colour`, `text_colour`, `border_colour` (a `FELT_COLOURS` name or a hex code; `sheetColour` in `catalog.js`); an optional `shape` column picks a look from `SHEET_SHAPES` in `config.js` (blank: the standard bar; the discipline patches `high voltage` (old name `hazard`), `gear`, `oxidizing`, `biohazard`, `falling rocks` on a yellow warning triangle (`hazard` shape), `psi` and `bridge` on a `diamond`, `infinitum` on an oval; plain `circle`, `shield`, `rectangle`, `street sign`). A cell can list several (`oxidizing / biohazard`): `sheetBarDefs` makes one entry each, the first keeping the row's id and the rest `wiki-<pageid>-<shape>`. Their sizes are guesses. Wiki photos may be looked at as a reference for drawing a design, never shipped. The sheet's table is an Excel query table, which ExcelJS can't write back without breaking it (it drops the query and turns the header row off), so add columns in Excel, not from code. Sheet rows that are really patches, such as EngSoc Crest, draw as bars for now.
   - Default text like "COMPUTER" is illustrative.
   - Get real data from Nathaniel. Don't make up more traditions.
 - **Traditional pieces** (QUEEN'S/APPLIED/SCIENCE, the "QUIS·DOLOR·CUI·DOLIUM" motto, pass crest, discipline bar (a standard bar reading DISCIPLINE until the user types theirs), year motto, year number, year crest) start on every new jacket, positioned by `layout.js` (sleeve pieces sit just under the cap's curve). From Nathaniel's photos: chenille back letters on dark red-brown felt; the motto scroll blue with yellow text and a red edge. The year digits look the same as the back letters (Nathaniel). Still guesses: the year crest (a 13 × 15.6 cm placeholder shield labelled "YEAR CREST" on two lines (a `\n` in an item's text stacks it in lines), on the wearer's left chest, 12 cm from the centre line and 18 cm down, per Nathaniel "a big crest … around the heart"), the year number size (12 × 9 cm), the year motto's look, the stacking gaps, and the leather waistband and cuffs. The lower-back pieces (and the discipline patch) aren't pre-placed yet, and traditional pieces aren't in the picker (they're always on the jacket).

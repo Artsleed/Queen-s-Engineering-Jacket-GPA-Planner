@@ -75,6 +75,7 @@ export function groupOf(d){
   const b = BUILTIN_MAP.get(d.id);
   if (!b) return 'yours';
   if (b.trad) return 'traditional';
+  if (b.group) return b.group;
   if ('type' in b) return GROUP_LABEL[b.type] ? b.type : 'unsorted';
   return b.cat === 'bar' ? 'basic' : b.cat;
 }

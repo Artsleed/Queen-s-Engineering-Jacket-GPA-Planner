@@ -432,6 +432,30 @@ function drawFlag(ctx, f, x, y, w, h){
     ctx.closePath(); ctx.fill();
   }
 }
+// A street sign (Ontario style): green felt, a white line just inside the edge, white
+// capitals in a plain bold sans like road signs, squeezed narrower before shrinking.
+function drawSign(ctx, d, text, x, y, w, h, o){
+  const r = h*0.12, lw = Math.max(0.6, h*0.06), inset = h*0.1;
+  ctx.save();
+  roundRectPath(ctx, x, y, w, h, r);
+  if (o.mask){ ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore(); return; }
+  ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = Math.max(1, h*0.12); ctx.shadowOffsetY = Math.max(0.5, h*0.04);
+  ctx.fillStyle = d.bg; ctx.fill(); ctx.shadowColor = 'transparent';
+  ctx.save(); roundRectPath(ctx, x, y, w, h, r); ctx.clip(); if (d.w) felt(ctx, x, y, w, h, w/d.w); ctx.restore();
+  roundRectPath(ctx, x + inset, y + inset, w - 2*inset, h - 2*inset, Math.max(0, r - inset*0.5));
+  ctx.lineWidth = lw; ctx.strokeStyle = d.border || d.fg; ctx.stroke();
+  if (text){
+    const line = text.replace(/\n/g, ' '), maxW = w - inset*6;
+    let fs = h*0.56;
+    const face = n => `700 ${n}px Archivo, "Arial Narrow", Arial, sans-serif`;
+    ctx.font = face(fs);
+    const tw = ctx.measureText(line).width, sx = Math.max(0.75, Math.min(1, maxW/tw));
+    if (tw*sx > maxW){ fs *= maxW/(tw*sx); ctx.font = face(fs); }
+    ctx.translate(x + w/2, y + h/2 + fs*0.04); ctx.scale(sx, 1);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = d.fg; ctx.fillText(line, 0, 0);
+  }
+  ctx.restore();
+}
 // o.mask draws the item's footprint in plain white (for the 3D bump and roughness maps).
 export function drawItem(ctx, d, text, x, y, w, h, o = {}){
   if (d.shape === 'scroll') return drawScroll(ctx, d, text, x, y, w, h, o);
@@ -441,6 +465,7 @@ export function drawItem(ctx, d, text, x, y, w, h, o = {}){
   if (d.shape === 'qas') return drawQAS(ctx, d, x, y, w, h, o);
   if (d.shape === 'arc') return drawArcBar(ctx, d, text, x, y, w, h, o);
   if (d.shape === 'chenille') return drawChenilleText(ctx, d, text, x, y, w, h, o);
+  if (d.shape === 'sign') return drawSign(ctx, d, text, x, y, w, h, o);
   if (o.mask) d = { ...d, bg:'#fff', fg:'#fff', border:'#fff', flag:null, img:null };
   const m = Math.min(w, h);
   ctx.save();
