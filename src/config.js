@@ -97,7 +97,7 @@ export const PRESETS = [
   { id:'patch-pass', cat:'patch', name:'Pass crest', text:'PASS', w:6.6, h:9.5, shape:'shield', bg:'#002452', fg:'#EAAA00', border:'#9D1939', trad:true, note:'Right sleeve, below the university motto, after first year.' },
   { id:'trad-year-motto', cat:'patch', name:'Year motto', text:YEAR_MOTTOS[froshYear()] || 'YEAR MOTTO', w:11.4, h:3.8, shape:'scroll', ...MOTTO, trad:true, note:"Top of the left sleeve. Type your year's motto in 'Text on this one'." },
   // Size and look are guesses until Nathaniel measures his; a generic stand-in, not the real crest.
-  { id:'trad-year-crest', cat:'patch', name:'Year crest', text:'YEAR\nCREST', w:13, h:15.6, shape:'shield', bg:'#002452', fg:'#EAAA00', border:'#9D1939', trad:true, note:"Front, over the heart (wearer's left)." },
+  { id:'trad-year-crest', cat:'patch', name:'Year crest', text:'YEAR\nCREST', w:13, h:13, shape:'circle', bg:'#002452', fg:'#EAAA00', border:'#9D1939', trad:true, note:"Front, over the heart (wearer's left)." },
   { id:'patch-year', cat:'patch', name:'Year number', text:froshYear(), w:12, h:9, shape:'chenille', ...BACK_LETTERS, trad:true, note:'Left sleeve, below the year motto: the last two digits of your graduating year.' },
   // `group` lists it in the picker under that group (catalog.js GROUPS).
   { id:'sign-street', cat:'patch', name:'Street sign', text:'', ...STREET_SIGN, group:'academic', hint:'e.g. N MAPLE ST', note:"Type the street on it in 'Text on this one'." },
