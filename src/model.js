@@ -11,7 +11,8 @@
 // panel is a centimetre on the 3D jacket. Where the real piece is shorter than the flat
 // rectangle (the neckline, and the sleeve cap by the underarm), the top rows pile up at
 // the edge: that part of the rectangle isn't on the jacket (see `cutaways`).
-import { foldsFor, foldHeight, smooth, sectionDims, seeded } from './surface.js';
+import { foldsFor, foldHeight, smooth, sectionDims, seeded, cuffVentX } from './surface.js';
+import { CUFF_VENT, SIDE_PANEL } from './config.js';
 
 /* ----- Small vector helpers: points are [x, y, z] ----- */
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -215,16 +216,19 @@ function girth(d, yv){
 }
 // A point on the sleeve tube: u around (0 underarm, 0.5 outer side), yv cm down the sleeve.
 // `s` shortens the arm so the outer side's length, cap included, matches the sleeve length.
-// The cuffs are worn unsnapped: the vent at the underarm seam opens into a V, widest at the
-// cuff's edge, and the cuff flares slightly. u = 0 and u = 1 are the two sides of the vent.
-export const VENT = { len:7.6, gap:7 }; // cm up from the cuff edge; cm apart at the edge
-function ventOpen(d, yv){ return smooth(d.sleeveL - VENT.len, d.sleeveL, yv); }
-function tubePoint(d, ax, side, u, yv, s = 1){
+// The cuffs are worn unsnapped: the vent on the back of the arm (CUFF_VENT) opens into a V,
+// widest at the cuff's edge, and the cuff flares slightly. The sleeve is two grids split at
+// the vent, u < uv and u > uv; `half` (-1, +1) says which side of the vent a point is on.
+const ventU = (d, side) => cuffVentX(side > 0 ? 'leftSleeve' : 'rightSleeve', d.sleeveW)/d.sleeveW;
+function ventOpen(d, yv){ return smooth(d.sleeveL - CUFF_VENT.len, d.sleeveL, yv); }
+function tubePoint(d, ax, side, u, yv, s = 1, half = 0){
   const { p:A, t:T } = ax.at(Math.max(0, (yv - 3)*s));
   const out = norm(sub([side, 0, 0], mul(T, side*T[0]))), F = cross(T, out), open = ventOpen(d, yv);
   const r0 = d.sleeveW*girth(d, yv)/(2*Math.PI), r = r0*(1 + 0.07*open);
-  // Each side of the vent swings round the arm by half the gap, easing off toward the outer side.
-  const swing = open*VENT.gap/2/r*(1 - smooth(0, 0.35, Math.min(u, 1 - u))), psi = 2*Math.PI*u + (u < 0.5 ? swing : -swing);
+  // Each side of the vent swings round the arm by half the gap, easing off away from it, to
+  // nothing before the underarm seam (so the two grids still meet there).
+  const uv = ventU(d, side), far = Math.min(uv, 1 - uv)*0.92;
+  const swing = half ? open*CUFF_VENT.gap/2/r*(1 - smooth(0, far, Math.abs(u - uv))) : 0, psi = 2*Math.PI*u + half*swing;
   return add(A, add(mul(out, -Math.cos(psi)*r*1.04), mul(F, Math.sin(psi)*r*0.96)));
 }
 
@@ -259,12 +263,12 @@ function sleevePanel(d, T, section, NU, NV){
   // away mostly near the underarm, so the columns near the outer side take less of the
   // armhole's length than those near the underarm.
   const ringAt = u => { const a = Math.pow(Math.abs(u - 0.5)*2, 1.6)*0.5; return ring[Math.round((u < 0.5 ? 0.5 - a : 0.5 + a)*256) % 257]; };
-  const meridian = (u, s) => {
+  const meridian = (u, s, half = 0) => {
     const P0 = ringAt(u);
     // Join the tube a little below the armhole, so the cap rounds over the shoulder.
     let yc = 8;
-    while (yc < H*0.6 && tubePoint(d, ax, side, u, yc, s)[1] > P0[1] - 5) yc += 0.5;
-    const P1 = tubePoint(d, ax, side, u, yc, s), D = len(sub(P1, P0));
+    while (yc < H*0.6 && tubePoint(d, ax, side, u, yc, s, half)[1] > P0[1] - 5) yc += 0.5;
+    const P1 = tubePoint(d, ax, side, u, yc, s, half), D = len(sub(P1, P0));
     // How the cap leaves the armhole: over the top, carrying on down the shoulder's slope;
     // round toward the underarm, heading down the arm. (Aiming it away from the shoulder
     // joint, which sits below the shoulder point, made the cap rise into a lip.)
@@ -272,7 +276,7 @@ function sleevePanel(d, T, section, NU, NV){
     const T0 = mul(norm(lerp(slope, arm, smooth(0.15, 0.85, Math.abs(u - 0.5)*2))), D*0.9), T1 = mul(ax.at((yc - 3)*s).t, D);
     const merid = [];
     for (let k = 0; k <= 30; k++) merid.push(hermite(P0, T0, P1, T1, k/30));
-    for (let yv = yc + 0.5; yv <= H + 1e-6; yv += 0.5) merid.push(tubePoint(d, ax, side, u, yv, s));
+    for (let yv = yc + 0.5; yv <= H + 1e-6; yv += 0.5) merid.push(tubePoint(d, ax, side, u, yv, s, half));
     return { merid, yc };
   };
   // The cap adds length on the outer side: shorten the arm to make up for it.
@@ -286,26 +290,47 @@ function sleevePanel(d, T, section, NU, NV){
   for (let k = 1; k < yvs.length; k++) dOut.push(dOut[k - 1] + len(sub(tubePoint(d, ax, side, 0.5, yvs[k], s), tubePoint(d, ax, side, 0.5, yvs[k - 1], s))));
   const yvAt = dd => { let k = 1; while (k < dOut.length - 1 && dOut[k] < dd) k++; const t = (dd - dOut[k - 1])/((dOut[k] - dOut[k - 1]) || 1); return yvs[k - 1] + (yvs[k] - yvs[k - 1])*Math.min(1, t); };
   const dAt = yv => { let k = 1; while (k < yvs.length - 1 && yvs[k] > yv) k++; const t = (yvs[k - 1] - yv)/((yvs[k - 1] - yvs[k]) || 1); return dOut[k - 1] + (dOut[k] - dOut[k - 1])*Math.min(1, t); };
-  const cols = [], tops = [];
-  for (let i = 0; i <= NU; i++){
-    const u = i/NU, { merid, yc } = meridian(u, s), cap = merid.slice(0, 31).reverse(), capCum = lengths(cap), Lc = capCum[capCum.length - 1];
-    const dJoin = dAt(yc), col = [];
-    for (let j = 0; j <= NV; j++){
-      const dd = H*(1 - j/NV), yv = yvAt(dd);
-      col.push(yv >= yc ? tubePoint(d, ax, side, u, yv, s) : along(cap, capCum, Math.min(Lc, dd - dJoin)));
+  // Two grids, split at the cuff vent (they meet edge to edge above it, and at the underarm).
+  const grid = (u0, u1, n, half) => {
+    const cols = [], tops = [];
+    for (let i = 0; i <= n; i++){
+      const u = u0 + (u1 - u0)*i/n, { merid, yc } = meridian(u, s, half), cap = merid.slice(0, 31).reverse(), capCum = lengths(cap), Lc = capCum[capCum.length - 1];
+      const dJoin = dAt(yc), col = [];
+      for (let j = 0; j <= NV; j++){
+        const dd = H*(1 - j/NV), yv = yvAt(dd);
+        col.push(yv >= yc ? tubePoint(d, ax, side, u, yv, s, half) : along(cap, capCum, Math.min(Lc, dd - dJoin)));
+      }
+      cols.push(col); tops.push(Math.max(0, H - dJoin - Lc));
     }
-    cols.push(col); tops.push(Math.max(0, H - dJoin - Lc));
-  }
+    return makeGrid(section, cols, tops, u0, u1);
+  };
   g_s.set(section, s);
-  return makeGrid(section, cols, tops, 0, 1);
+  const uv = ventU(d, side), nA = Math.max(2, Math.round(NU*uv));
+  const A = grid(0, uv, nA, -1), B = grid(uv, 1, Math.max(2, NU - nA), 1);
+  A.vent = A.NU; B.vent = 0; // the column along the vent's edge
+  A.right = B; B.left = A; B.right = A; A.left = B; // joined above the vent, and at the underarm seam
+  return [A, B];
 }
 // How much each sleeve's arm was shortened (sleevePanel), for the folds' inside points.
 const g_s = new Map();
 
 /* ----- Normals, folds and shading ----- */
 // Outward normals by finite differences, flipped to point away from `inside(j, i)`.
-function gridNormals(g, inside){
-  const { NU, NV, pos } = g, P = (j, i) => pos[Math.max(0, Math.min(NV, j))][Math.max(0, Math.min(NU, i))];
+// A sleeve is two grids side by side (split at the cuff vent); past its edge columns a grid
+// reads its neighbour's (g.left, g.right), wherever the two meet, so both work out the same
+// normal along the join and stay together when the folds push them out. `base`: use the
+// unfolded surfaces (both grids' own and the neighbour's).
+function gridNormals(g, inside, base = false){
+  const { NU, NV } = g, pos = (base && g.base) || g.pos, clampP = (j, i) => pos[j][Math.max(0, Math.min(NU, i))];
+  const P = (j, i) => {
+    j = Math.max(0, Math.min(NV, j));
+    const o = i > NU ? g.right : i < 0 ? g.left : null;
+    if (o){
+      const op = (base && o.base) || o.pos, edge = i > NU ? pos[j][NU] : pos[j][0], k = i > NU ? i - NU : o.NU + i, mine = i > NU ? op[j][0] : op[j][o.NU];
+      if (len(sub(edge, mine)) < 0.5) return op[j][k];
+    }
+    return clampP(j, i);
+  };
   const raw = pos.map((row, j) => row.map((p, i) => {
     // Rows piled up at a cut-away edge: use the first real row below instead.
     let jj = j;
@@ -323,19 +348,42 @@ function gridNormals(g, inside){
 }
 // How far (cm) the padded panels bulge out between their seams.
 const PAD = 0.45;
+// Where the side panel starts: the armpit, in cm down from the top edge of the front and back
+// (the rows are level rings up to there, so it's the same height across both).
+const sideTopCache = new Map();
+export function sidePanelTop(m){
+  const key = JSON.stringify(m);
+  if (!sideTopCache.has(key)){
+    const d = bodyDims(m), R = torsoRefs(d, torsoTables(d));
+    sideTopCache.set(key, d.L - R.back.dA);
+    if (sideTopCache.size > 8) sideTopCache.delete(sideTopCache.keys().next().value);
+  }
+  return sideTopCache.get(key);
+}
+// Distance from the nearest seam across a torso panel, at section (x, y). Above the armpit
+// that's the panel's side edge (the armhole); below it, the side panel's seams, `half` cm in
+// from each edge, as the side panel runs on across the edge without one.
+function torsoSeamDist(W, x, y, sideTop){
+  const e = Math.min(x, W - x), h = SIDE_PANEL.half, below = smooth(sideTop - 1, sideTop + 2, y);
+  return e + (Math.abs(e - h) - e)*below;
+}
 function foldPanel(g, m, insideFn){
   const sleeve = g.section === 'leftSleeve' || g.section === 'rightSleeve';
   // The inside points only orient the normals; work them out once, as applyFolds reruns.
   const ins = g.pos.map((row, j) => row.map((p, i) => insideFn(j, i)));
   insideFn = (j, i) => ins[j][i];
-  const { W, H } = sectionDims(g.section, m), folds = foldsFor(g.section, m), n0 = gridNormals(g, insideFn);
+  const { W, H } = sectionDims(g.section, m), n0 = gridNormals(g, insideFn, true), sideTop = sleeve ? 0 : sidePanelTop(m);
+  // The elastic waistband's gathers run right across the side seam line (where the front and
+  // back grids meet, so it fades nothing there); the other folds fade out at seams.
+  const all = foldsFor(g.section, m), gathers = all.filter(f => f.pleats && f.from != null), folds = all.filter(f => !gathers.includes(f));
   // Two parts, kept apart so a patch can flatten the folds without undoing the padding
   // (which pressed every patch into a rectangular dent): g.fold and g.pad.
   g.pad = g.pos.map(row => row.map(() => 0));
   g.fold = g.pos.map((row, j) => row.map((p, i) => {
     const x = (g.u0 + (g.u1 - g.u0)*i/g.NU)*W, y = H*j/g.NV, top = g.tops[i];
     // Folds fade out at seams (so the panels still meet) but run right to free edges.
-    const side = Math.min(x, W - x), seams = smooth(top, top + 3, y)*smooth(0, 2.5, side);
+    const edge = Math.min(x, W - x), side = sleeve ? edge : torsoSeamDist(W, x, y, sideTop);
+    const seams = smooth(top, top + 3, y)*smooth(0, 2.5, Math.min(edge, side));
     // The jacket is lined and padded, so each panel puffs out a little between its seams:
     // the seams (sides, top, and where the waistband or cuff joins) are pulled in.
     // The seams stay exactly where they are, so neighbouring panels still meet, and the
@@ -343,7 +391,7 @@ function foldPanel(g, m, insideFn){
     const band = sleeve ? m.cuff : m.waistband, bandSeam = Math.abs(y - (H - band));
     const bulge = smooth(0, 4, side)*smooth(0, 4, y - top), dip = 0.6*(1 - smooth(0, 1.2, bandSeam));
     g.pad[j][i] = PAD*(bulge - dip);
-    return foldHeight(folds, x, y)*seams;
+    return foldHeight(folds, x, y)*seams + foldHeight(gathers, x, y)*smooth(top, top + 3, y);
   }));
   g.base = g.pos; g.n0 = n0; g.inside = insideFn;
   applyFolds(g);
@@ -354,6 +402,9 @@ export function applyFolds(g, damp = null){
   g.pos = g.base.map((row, j) => row.map((p, i) => add(p, mul(g.n0[j][i], g.fold[j][i]*(damp ? damp(j, i) : 1) + g.pad[j][i]))));
   g.normal = gridNormals(g, g.inside);
 }
+// After folding grids that are joined (a sleeve's two halves), redo their normals so each
+// sees the other's folded surface along the join.
+export function joinNormals(gs){ for (const g of gs) if (g.left || g.right) g.normal = gridNormals(g, g.inside); }
 // Ambient occlusion, per point, 0.5..1: the body side under the arm, the inside of the
 // sleeve against the body, fold valleys, and just under the waistband's blousing.
 function shade(g, d){
@@ -611,13 +662,18 @@ export function buildJacket(m){
   const torsoInside = g => (j, i) => [0, g.pos[j][i][1], 0];
   const F = { left:torsoPanel(d, T, 'front', 0, 0.5, -1, 40, 100), right:torsoPanel(d, T, 'front', 0.5, 1, 1, 40, 100) };
   const B = torsoPanel(d, T, 'back', 0, 1, 0, 80, 100);
-  const sleeves = ['leftSleeve', 'rightSleeve'].map(s => sleevePanel(d, T, s, 64, 110));
+  // Below the armpit the front and back are one piece across the side seam line (the side
+  // panel), so let their normals read across it (see gridNormals): the padding then runs on
+  // across without a crease. The front's left edge meets the back's right, and vice versa.
+  F.left.left = B; B.right = F.left; F.right.right = B; B.left = F.right;
+  const sleeves = ['leftSleeve', 'rightSleeve'].flatMap(s => sleevePanel(d, T, s, 64, 110));
   for (const g of [F.left, F.right, B]) foldPanel(g, m, torsoInside(g));
   for (const g of sleeves){
     const side = g.section === 'leftSleeve' ? 1 : -1, ax = sleeveAxis(d, side);
     const s = g_s.get(g.section) || 1;
     foldPanel(g, m, (j, i) => { const p = g.base ? g.base[j][i] : g.pos[j][i]; let best = ax.J, bd = Infinity; for (let t = 0; t <= d.sleeveL; t += 2){ const q = ax.at(t*s).p, dd = Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); if (dd < bd){ bd = dd; best = q; } } return best; });
   }
+  joinNormals([F.left, F.right, B, ...sleeves]);
   for (const g of [F.left, F.right, B, ...sleeves]) shade(g, d);
   return { dims:d, panels:[F.left, F.right, B, ...sleeves], collar:collar(d, F, B) };
 }
@@ -638,6 +694,9 @@ function computeCutaways(m){
   const R = torsoRefs(d, T), torsoTop = panel => u => torsoColumn(d, T, R, panel, u, u <= 0.5 ? -1 : 1, 2).top;
   out.front = edge(d.W, torsoTop('front'));
   out.back = edge(d.W, torsoTop('back'));
-  for (const s of ['leftSleeve', 'rightSleeve']){ const g = sleevePanel(d, T, s, 32, 2); out[s] = g.tops.map((t, i) => [i/32*d.sleeveW, t]); }
+  for (const s of ['leftSleeve', 'rightSleeve']){
+    const [A, B] = sleevePanel(d, T, s, 32, 2), at = g => g.tops.map((t, i) => [(g.u0 + (g.u1 - g.u0)*i/g.NU)*d.sleeveW, t]);
+    out[s] = [...at(A), ...at(B).slice(1)];
+  }
   return out;
 }

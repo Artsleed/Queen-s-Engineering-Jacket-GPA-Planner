@@ -4,6 +4,8 @@
 // textures shade and wear along the same lines, so creases on the flat mat and on the
 // 3D jacket line up. No DOM. Tested in tests/surface.test.js.
 
+import { CUFF_VENT, SIDE_PANEL } from './config.js';
+
 export const smooth = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0)/(e1 - e0))); return t*t*(3 - 2*t); };
 // Seeded random numbers in [0, 1), so folds and creases are the same on every load.
 export function seeded(seed){ return () => ((seed = (seed*1664525 + 1013904223) >>> 0) / 4294967296); }
@@ -19,11 +21,16 @@ export function sleeveSides(section, W){
   return { front, back:W - front };
 }
 
+// The cuff vent's slit, in the sleeve's own x: toward the back of the arm from the outer side.
+export const cuffVentX = (section, W) => W/2 + (section === 'leftSleeve' ? 1 : -1)*CUFF_VENT.at;
+
 /* ----- Folds ----- */
 // Each fold is one of:
 //   { x0, y0, x1, y1, w, a }      a soft ridge (a > 0) or valley (a < 0) along a segment, w wide
 //   { ring:true, y, w, a, wave, period, phase }   a fold all the way across, wavy
-//   { pleats:true, y0, y1, period, a }            gathers, like a waistband or cuff
+//   { pleats:true, y0, y1, period, a, from?, len? }   gathers, like a waistband or cuff;
+//      with `from`, only within `len` cm of the edge x = from (the side panel's elastic
+//      waistband), starting from nothing at the edge so the front and back meet there
 // Heights are in cm, out from the surface.
 export function foldsFor(section, m){
   const { W, H } = sectionDims(section, m), rnd = seeded(['front', 'back', 'leftSleeve', 'rightSleeve'].indexOf(section)*7919 + 101);
@@ -33,6 +40,9 @@ export function foldsFor(section, m){
     const wb = m.waistband, top = H - wb;
     // The waistband hangs straight (it isn't cinched), so just a soft, shallow wave above it.
     out.push({ ring:true, y:top - 4, w:2, a:0.12, wave:1.2, period:W/2, phase:rnd()*6 });
+    // The side panel's waistband is gathered elastic, either side of the side seam line. The
+    // back's gathers are the front's flipped (a < 0), so they carry on across the line.
+    for (const from of [0, W]) out.push({ pleats:true, y0:H - m.waistband, y1:H, period:SIDE_PANEL.period, a:(section === 'front' ? 1 : -1)*SIDE_PANEL.depth, from, len:SIDE_PANEL.half });
     if (section === 'back'){
       // Soft drape from the shoulder blades.
       for (const sx of [0.3, 0.7]) seg(W*sx + jit(2), H*0.33, W*sx + jit(3) + (sx < 0.5 ? -2 : 2), H*0.8, 2.6, 0.22);
@@ -77,7 +87,11 @@ export function foldHeight(folds, x, y){
     } else if (f.pleats){
       if (y < f.y0 - 0.5 || y > f.y1) continue;
       const k = smooth(f.y0 - 0.5, f.y0 + 0.8, y);
-      h += f.a*k*Math.sin(2*Math.PI*x/f.period + 0.8*Math.sin(x*0.37));
+      if (f.from != null){
+        const s = Math.abs(x - f.from); // cm from the side seam line
+        if (s > f.len) continue;
+        h += f.a*k*Math.sin(2*Math.PI*s/f.period)*(1 - smooth(f.len - 1, f.len, s));
+      } else h += f.a*k*Math.sin(2*Math.PI*x/f.period + 0.8*Math.sin(x*0.37));
     } else {
       const { d, t } = segDist(x, y, f);
       const taper = Math.sin(Math.PI*Math.min(1, Math.max(0, t*0.9 + 0.05))); // fades out at both ends
@@ -90,15 +104,20 @@ export function foldHeight(folds, x, y){
 /* ----- Wear ----- */
 // How much a spot rubs over the years, 0..1: seams and edges, raised folds, elbows,
 // the top of the shoulders. `noise` is a 0..1 value the caller supplies (blotchiness).
-export function wearPotential(section, m, x, y, fold, noise){
+// `sideTop`: where the side panel starts (model.js sidePanelTop); its seams wear below it,
+// and the side seam line, which has no seam there, doesn't.
+export function wearPotential(section, m, x, y, fold, noise, sideTop = Infinity){
   const { W, H } = sectionDims(section, m);
   const edge = d => 1 - smooth(0, 1.6, d);
   let e = Math.max(edge(x), edge(W - x), edge(y));
   if (!isSleeve(section)){
+    const below = Number.isFinite(sideTop) ? smooth(sideTop - 1, sideTop + 1, y) : 0, h = SIDE_PANEL.half;
+    e = Math.max(edge(y), Math.max(edge(x), edge(W - x))*(1 - below), Math.max(edge(Math.abs(x - h)), edge(Math.abs(W - h - x)))*below);
     e = Math.max(e, edge(Math.abs(y - (H - m.waistband))), edge(H - y));
     if (section === 'front') e = Math.max(e, edge(Math.abs(x - W/2) - m.zipper/2));
   } else {
     e = Math.max(e, edge(Math.abs(y - (H - m.cuff))), edge(H - y));
+    e = Math.max(e, edge(Math.abs(x - cuffVentX(section, W)))*smooth(H - CUFF_VENT.len - 1, H - CUFF_VENT.len + 1, y)); // the vent's edges
     const { back } = sleeveSides(section, W), dE = Math.hypot(x - back, (y - H*0.47)*0.8);
     e = Math.max(e, 0.9*Math.exp(-((dE/6.5)**2)));
   }

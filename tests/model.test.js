@@ -1,7 +1,7 @@
 // Checks the 3D jacket model: it's built from the measurements, and a centimetre on the
 // flat panel is (close to) a centimetre on the 3D surface, so patches show at true size.
 import { describe, it, expect } from 'vitest';
-import { buildJacket, cutaways } from '../src/model.js';
+import { buildJacket, cutaways, sidePanelTop } from '../src/model.js';
 import { DEFAULT_MEAS } from '../src/config.js';
 
 const J = buildJacket(DEFAULT_MEAS);
@@ -12,7 +12,7 @@ const colLength = (g, i, j0, j1) => { let L = 0; for (let j = j0 + 1; j <= j1; j
 
 describe('buildJacket', () => {
   it('builds every panel with finite points', () => {
-    expect(J.panels.map(g => g.section).sort()).toEqual(['back', 'front', 'front', 'leftSleeve', 'rightSleeve']);
+    expect(J.panels.map(g => g.section).sort()).toEqual(['back', 'front', 'front', 'leftSleeve', 'leftSleeve', 'rightSleeve', 'rightSleeve']);
     for (const g of J.panels) expect(g.pos.flat().some(p => p.some(v => !Number.isFinite(v))), g.section).toBe(false);
     expect(J.collar.flat().every(p => p.every(Number.isFinite))).toBe(true);
   });
@@ -28,10 +28,26 @@ describe('buildJacket', () => {
     expect(colLength(B, i, j0, j1)/flat).toBeLessThan(1.06);
   });
   it('keeps the outer side of the sleeve true to size', () => {
-    for (const g of [...panel('leftSleeve'), ...panel('rightSleeve')]){
-      const i = g.NU/2, j0 = Math.round(g.NV*0.25), j1 = Math.round(g.NV*0.75), flat = DEFAULT_MEAS.sleeve*(j1 - j0)/g.NV;
+    for (const s of ['leftSleeve', 'rightSleeve']){
+      const g = panel(s).find(g => g.u0 <= 0.5 && g.u1 >= 0.5), i = Math.round((0.5 - g.u0)/(g.u1 - g.u0)*g.NU), j0 = Math.round(g.NV*0.25), j1 = Math.round(g.NV*0.75), flat = DEFAULT_MEAS.sleeve*(j1 - j0)/g.NV;
       expect(colLength(g, i, j0, j1)/flat, g.section).toBeGreaterThan(0.95);
       expect(colLength(g, i, j0, j1)/flat, g.section).toBeLessThan(1.06);
+    }
+  });
+  it('splits each sleeve at the cuff vent: closed above it, open at the cuff', () => {
+    for (const s of ['leftSleeve', 'rightSleeve']){
+      const [A, B] = panel(s), mid = Math.round(A.NV*0.5);
+      expect(A.u1).toBe(B.u0);
+      expect(dist(A.pos[mid][A.vent], B.pos[mid][B.vent])).toBeLessThan(0.01);
+      expect(dist(A.pos[A.NV][A.vent], B.pos[B.NV][B.vent])).toBeGreaterThan(5);
+      expect(dist(A.pos[A.NV][0], B.pos[B.NV][B.NU])).toBeLessThan(0.01); // the underarm seam stays closed
+    }
+  });
+  it('keeps the front and back together under the arms, where the side panel crosses the side seam line', () => {
+    const [L, R] = panel('front'), [B] = panel('back'), top = Math.round(L.NV*sidePanelTop(DEFAULT_MEAS)/DEFAULT_MEAS.length) + 2;
+    for (let j = top; j <= L.NV; j++){ // down to the hem, through the gathered waistband
+      expect(dist(L.pos[j][0], B.pos[j][B.NU]), `row ${j}`).toBeLessThan(0.02);
+      expect(dist(R.pos[j][R.NU], B.pos[j][0]), `row ${j}`).toBeLessThan(0.02);
     }
   });
   it('hangs the front open', () => {

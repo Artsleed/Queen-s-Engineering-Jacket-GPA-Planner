@@ -29,8 +29,24 @@ export const FRONT = {
   pocketSlant:9,          // degrees off vertical; the top leans toward the front edge
   snapFromEdge:1.8,       // the pair of waistband snaps, in from each front edge
 };
-// Bars can be sewn on the cuff (Nathaniel's photo), except over the snapped vent by the underarm seam.
-export const CUFF_VENT = 4;  // cm each side of the underarm seam
+// The side panel (Nathaniel): a strip joining the front and back under each arm, from the
+// armpit down, with a seam down each side of it. Its waistband is gathered elastic.
+// The width is a guess. It straddles the old side seam: `half` cm onto the front and the back.
+export const SIDE_PANEL = {
+  half:5,          // cm each side of the side seam line (the front's and back's edges)
+  period:1.4,      // cm between gathers on the elastic waistband
+  depth:0.3,       // cm the gathers stand out
+};
+// The snapped cuff vent (Nathaniel): a little behind the sleeve's outer side, about where a
+// bar centred on the outer side ends, so from the front it shows at an angle on the arm's edge.
+// Worn unsnapped, so it opens into a V. Bars can be sewn on the rest of the cuff (Nathaniel's photo).
+export const CUFF_VENT = {
+  at:6.5,    // cm round from the sleeve's outer-side line to the slit, toward the back of the arm
+  len:7.6,   // cm up from the cuff edge
+  gap:7,     // cm apart at the cuff edge, open
+  clear:3,   // cm each side of the slit kept clear (the no-go zone)
+  snap:2,    // cm from the slit to each half of the snap
+};
 
 // Chenille lettering on felt backing (from Nathaniel's photos). The back letters are royal
 // blue on a dark red-brown backing that shows as a thin edge and fills the letters' holes.

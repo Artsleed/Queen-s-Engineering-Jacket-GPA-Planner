@@ -10,7 +10,7 @@
 //   surface  R = clearcoat (glossy leather), G = roughness (felt and chenille are matte)
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { SECTIONS, TEX_PX as FULL_TEX_PX, LITE } from './config.js';
+import { SECTIONS, TEX_PX as FULL_TEX_PX, LITE, CUFF_VENT } from './config.js';
 import { $, clamp } from './util.js';
 import { state, view, sectionSize, noGoZones, getDef, dims, textOf } from './state.js';
 import { drawPanel, drawItem } from './draw.js';
@@ -19,7 +19,7 @@ import { heightLayer, leatherLayer, surfaceLayer, grainCanvas } from './leather.
 // The bump map is finer than the colour map, so the pebble grain shows up close.
 // Texture detail, px per cm. The lite view (phones) uses about a quarter of the memory.
 const TEX_PX = LITE ? 6 : FULL_TEX_PX, BUMP_PX = LITE ? 8 : 20;
-import { buildJacket, applyFolds, VENT, THICK } from './model.js';
+import { buildJacket, applyFolds, joinNormals, THICK } from './model.js';
 import pkg from '../package.json';
 import { hitTest } from './editor2d.js';
 import { setSection, select } from './panels.js';
@@ -270,9 +270,10 @@ export function build3D(){
     add(rowsGeometry(edgeRows(g, bottom, [j => j - 1, i => i], t)), plainMat);
     if (g.section === 'leftSleeve' || g.section === 'rightSleeve'){
       // The open cuff vent: both edges get thickness, from where the slit starts to the cuff edge.
-      const j0 = Math.max(0, Math.floor(g.NV*(1 - VENT.len/state.meas.sleeve)) - 1), rows = Array.from({ length:last - j0 + 1 }, (_, k) => k + j0);
-      add(rowsGeometry(edgeRows(g, rows.map(j => [j, 0]), [j => j, () => 1], t)), plainMat);
-      add(rowsGeometry(edgeRows(g, rows.map(j => [j, cols]), [j => j, () => cols - 1], t)), plainMat);
+      // Each sleeve is two grids split at the vent; g.vent is this grid's column along it.
+      const j0 = Math.max(0, Math.floor(g.NV*(1 - CUFF_VENT.len/state.meas.sleeve)) - 1), rows = Array.from({ length:last - j0 + 1 }, (_, k) => k + j0);
+      const iv = g.vent, inner = iv === 0 ? 1 : iv - 1;
+      add(rowsGeometry(edgeRows(g, rows.map(j => [j, iv]), [j => j, () => inner], t)), plainMat);
     }
     if (g.section === 'front'){
       const ei = g.u1 === 0.5 ? cols : 0, rows = Array.from({ length:last + 1 }, (_, j) => [j, ei]);
@@ -352,12 +353,15 @@ function flattenUnderPatches(s){
   cx.filter = 'none';
   const px = cx.getImageData(0, 0, cw, ch).data;
   const cover = (x, y) => { const X = Math.min(cw - 1, Math.max(0, Math.round(x*COVER_PX))), Y = Math.min(ch - 1, Math.max(0, Math.round(y*COVER_PX))); return px[(Y*cw + X)*4 + 3]/255; };
-  for (const P of V.panels){
+  const todo = V.panels.filter(P => P.g.section === s && P.key !== key);
+  for (const P of todo){
     const g = P.g;
-    if (g.section !== s || P.key === key) continue;
     P.key = key;
     applyFolds(g, (j, i) => 1 - 0.92*Math.min(1, cover((g.u0 + (g.u1 - g.u0)*i/g.NU)*W, H*j/g.NV)*1.5));
-    const pos = P.mesh.geometry.attributes.position, nor = P.mesh.geometry.attributes.normal, cols = g.NU + 1;
+  }
+  joinNormals(todo.map(P => P.g)); // a sleeve's two halves
+  for (const P of todo){
+    const g = P.g, pos = P.mesh.geometry.attributes.position, nor = P.mesh.geometry.attributes.normal, cols = g.NU + 1;
     for (let j = 0; j <= g.NV; j++) for (let i = 0; i <= g.NU; i++){ const k = j*cols + i; pos.setXYZ(k, ...g.pos[j][i]); nor.setXYZ(k, ...g.normal[j][i]); }
     pos.needsUpdate = nor.needsUpdate = true; P.mesh.geometry.computeBoundingSphere();
   }

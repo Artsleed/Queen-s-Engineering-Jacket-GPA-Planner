@@ -9,6 +9,7 @@
 //   - heightLayer: grain and fine creases, for the 3D bump map
 // All cached: they change with the jacket's size, colour or wear, never when a patch moves.
 import { foldsFor, foldHeight, wearPotential, sectionDims, seeded, smooth } from './surface.js';
+import { sidePanelTop } from './model.js';
 import { hexToRgb } from './util.js';
 import { JACKET_COLOURS, LITE } from './config.js';
 
@@ -98,14 +99,14 @@ const fieldCache = new Map();
 function fields(section, m){
   return remember(fieldCache, section + JSON.stringify(m), () => {
     const { W, H } = sectionDims(section, m), w = Math.max(1, Math.round(W*FIELD_PX)), h = Math.max(1, Math.round(H*FIELD_PX));
-    const folds = foldsFor(section, m), seed = section.length*13.1, n = w*h;
+    const folds = foldsFor(section, m), seed = section.length*13.1, n = w*h, sideTop = sidePanelTop(m);
     const fold = new Float32Array(n), wear = new Float32Array(n), mottle = new Float32Array(n), scuff = new Float32Array(n);
     for (let py = 0; py < h; py++) for (let px = 0; px < w; px++){
       const x = (px + 0.5)/FIELD_PX, y = (py + 0.5)/FIELD_PX, k = py*w + px, f = foldHeight(folds, x, y);
       fold[k] = f;
       // Cloudy, blotchy dye: big soft clouds with smaller ones inside.
       mottle[k] = noise(x/14, y/14, seed)*0.45 + noise(x/5.5, y/5.5, seed + 1)*0.35 + noise(x/2.2, y/2.2, seed + 6)*0.2;
-      wear[k] = wearPotential(section, m, x, y, f, noise(x/2.4, y/2.4, seed + 2)*0.55 + noise(x/7, y/7, seed + 5)*0.45);
+      wear[k] = wearPotential(section, m, x, y, f, noise(x/2.4, y/2.4, seed + 2)*0.55 + noise(x/7, y/7, seed + 5)*0.45, sideTop);
       scuff[k] = noise(x/1.4, y/1.4, seed + 3)*0.7 + noise(x/0.6, y/0.6, seed + 4)*0.3;
     }
     return { W, H, w, h, fold, wear, mottle, scuff };

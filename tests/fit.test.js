@@ -125,16 +125,16 @@ describe('findSpot speed', () => {
 describe('settle', () => {
   it('lets a bar sit on the cuff band (they do get sewn there)', () => {
     load({ placed:[] });
-    const p = { uid:'a', item:'bar-blank', section:'leftSleeve', x:13, y:DEFAULT_MEAS_SLEEVE - 5, rot:0, text:null };
+    const p = { uid:'a', item:'bar-blank', section:'leftSleeve', x:6, y:DEFAULT_MEAS_SLEEVE - 5, rot:0, text:null }; // front of the arm, clear of the vent
     state.placed.push(p);
     expect(settle(p)).toBeNull();
     expect(conflicts('leftSleeve').size).toBe(0);
   });
-  it('moves a bar off the snapped cuff vent by the underarm', () => {
+  it('moves a bar off the snapped cuff vent on the back of the arm', () => {
     load({ placed:[] });
-    const p = { uid:'a', item:'bar-blank', section:'leftSleeve', x:0, y:DEFAULT_MEAS_SLEEVE - 5, rot:0, text:null };
+    const p = { uid:'a', item:'bar-blank', section:'leftSleeve', x:20, y:DEFAULT_MEAS_SLEEVE - 5, rot:0, text:null };
     state.placed.push(p);
-    expect(settle(p).label).toBe('Cuff snaps');
+    expect(settle(p).label).toBe('Cuff vent');
     expect(conflicts('leftSleeve').size).toBe(0);
   });
   it('leaves a patch alone when it only overlaps another patch', () => {

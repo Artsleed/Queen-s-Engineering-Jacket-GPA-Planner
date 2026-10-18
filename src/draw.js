@@ -6,6 +6,8 @@ import { state, sel, sectionSize, noGoZones, getDef, dims, textOf } from './stat
 import { conflicts } from './fit.js';
 import { leatherLayer, fillGrain, grainCanvas } from './leather.js';
 import { seeded } from './surface.js';
+import { sidePanelTop } from './model.js';
+import { SIDE_PANEL } from './config.js';
 import { arcGeom, bandOf } from './shapes.js';
 import { dyedChenille } from './config.js';
 import { flagUrl } from './flags.js';
@@ -543,14 +545,29 @@ export function drawItem(ctx, d, text, x, y, w, h, o = {}){
   ctx.restore();
 }
 
-// A metal press stud.
-function drawSnap(ctx, x, y, r){
+// A metal press stud. `kind`: 'cap' (the smooth domed cover, the default) or 'stud' (the
+// male half: a flat ring with a knob standing up in the middle).
+function drawSnap(ctx, x, y, r, kind = 'cap'){
   ctx.save();
-  const g = ctx.createRadialGradient(x - r*0.35, y - r*0.35, r*0.1, x, y, r);
-  g.addColorStop(0, '#F4F5F7'); g.addColorStop(.55, '#A9AEB6'); g.addColorStop(1, '#5D626A');
+  const metal = (cx, cy, rr) => {
+    const g = ctx.createRadialGradient(cx - rr*0.35, cy - rr*0.35, rr*0.1, cx, cy, rr);
+    g.addColorStop(0, '#F4F5F7'); g.addColorStop(.55, '#A9AEB6'); g.addColorStop(1, '#5D626A');
+    return g;
+  };
   ctx.shadowColor = 'rgba(0,0,0,.4)'; ctx.shadowBlur = r*0.6; ctx.shadowOffsetY = r*0.2;
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
-  ctx.shadowColor = 'transparent'; ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = r*0.12; ctx.beginPath(); ctx.arc(x, y, r*0.55, 0, Math.PI*2); ctx.stroke();
+  if (kind === 'stud'){
+    // A flat ring, shaded across (not domed), then the knob with its own shadow.
+    const g = ctx.createLinearGradient(x - r, y - r, x + r, y + r);
+    g.addColorStop(0, '#D9DCE0'); g.addColorStop(1, '#6B7078');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = r*0.1;
+    ctx.beginPath(); ctx.arc(x, y, r*0.78, 0, Math.PI*2); ctx.stroke();
+    ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = r*0.25; ctx.shadowOffsetX = r*0.08; ctx.shadowOffsetY = r*0.12;
+    ctx.fillStyle = metal(x, y, r*0.42); ctx.beginPath(); ctx.arc(x, y, r*0.42, 0, Math.PI*2); ctx.fill();
+  } else {
+    ctx.fillStyle = metal(x, y, r); ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = r*0.08; ctx.beginPath(); ctx.arc(x, y, r*0.92, 0, Math.PI*2); ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -597,7 +614,14 @@ function drawSeams(ctx, s, k, W, H, jc){
     return 0;
   };
   const topLine = off => { ctx.beginPath(); for (let i = 0; i <= 64; i++){ const x = W/k*i/64; i ? ctx.lineTo(x*k, (top(x) + off)*k) : ctx.moveTo(x*k, (top(x) + off)*k); } };
-  const sides = off => { ctx.beginPath(); ctx.moveTo(off*k, top(off)*k); ctx.lineTo(off*k, bottom); ctx.moveTo(W - off*k, top(W/k - off)*k); ctx.lineTo(W - off*k, bottom); };
+  // Front and back: the side edges are seams only down to the armpit (the armhole); below it
+  // the side panel carries on across them, with its own seam `half` cm in from each edge.
+  const torso = s === 'front' || s === 'back', arm = torso ? sidePanelTop(m)*k : bottom, h = SIDE_PANEL.half*k;
+  const sides = off => {
+    ctx.beginPath(); ctx.moveTo(off*k, top(off)*k); ctx.lineTo(off*k, arm); ctx.moveTo(W - off*k, top(W/k - off)*k); ctx.lineTo(W - off*k, arm);
+    // The side panel's seams; the stitching runs down the panel's side of each.
+    if (torso) for (const x of [h - off*k, W - h + off*k]){ ctx.moveTo(x, arm); ctx.lineTo(x, bottom); }
+  };
   ctx.save();
   ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = Math.max(0.8, k*0.14);
   topLine(0.12); ctx.stroke(); sides(0.12); ctx.stroke();
@@ -702,7 +726,7 @@ function drawZone(ctx, s, z, k, jc){
     stitchStyle(ctx, jc, k);
     ctx.beginPath(); ctx.moveTo(x, y + k*0.5); ctx.lineTo(x + zw, y + k*0.5); ctx.moveTo(x, y + zh - k*0.5); ctx.lineTo(x + zw, y + zh - k*0.5); ctx.stroke();
     ctx.restore();
-    for (const [sx, f] of z.snaps || []) drawSnap(ctx, sx*k, y + zh*f, k*0.6);
+    for (const [sx, f, kind] of z.snaps || []) drawSnap(ctx, sx*k, y + zh*f, k*0.6, kind);
   } else if (z.kind === 'opening'){
     // The open zipper: on each front edge, metal teeth at the very edge, then the tape,
     // then a line of topstitching on the leather. (The jacket's worn open, so the halves part.)
@@ -713,7 +737,7 @@ function drawZone(ctx, s, z, k, jc){
     ctx.fillStyle = g; ctx.fillRect(cx - k*0.4, y, k*0.8, zh);
     for (const sd of [-1, 1]){
       const edge = cx + sd*k*0.05;
-      ctx.fillStyle = '#6E5B44'; ctx.fillRect(Math.min(edge, edge + sd*k*1.3), y, k*1.3, zh);           // tape
+      ctx.fillStyle = '#4A3424'; ctx.fillRect(Math.min(edge, edge + sd*k*1.3), y, k*1.3, zh);           // tape (dark brown)
       ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(Math.min(edge + sd*k*1.25, edge + sd*k*1.45), y, k*0.2, zh);
       const tw = k*0.55, step = k*0.32;
       for (let yy = y + (sd > 0 ? step/2 : 0); yy < y + zh; yy += step){                               // teeth
@@ -725,6 +749,14 @@ function drawZone(ctx, s, z, k, jc){
     }
     stitchStyle(ctx, jc, k);
     ctx.beginPath(); for (const ex of [cx - k*1.75, cx + k*1.75]){ ctx.moveTo(ex, y); ctx.lineTo(ex, y + zh); } ctx.stroke();
+    ctx.restore();
+  } else if (z.kind === 'vent' && z.slit != null){
+    // The cuff vent's slit: a dark gap, with topstitching down each side and round its top.
+    const sx = z.slit*k, top = y, bot = y + zh, g = k*0.18, st = k*0.55;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(sx - g/2, top, g, zh);
+    stitchStyle(ctx, jc, k);
+    ctx.beginPath(); ctx.moveTo(sx - st, bot); ctx.lineTo(sx - st, top - st*0.6); ctx.lineTo(sx + st, top - st*0.6); ctx.lineTo(sx + st, bot); ctx.stroke();
     ctx.restore();
   } else if (z.kind === 'lapel'){
     // Edge 1 runs down the front edge (the fold), so it gets no stitching.

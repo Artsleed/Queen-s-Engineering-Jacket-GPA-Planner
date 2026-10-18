@@ -6,8 +6,9 @@
 // Several zones come from the 3D model (model.js), so the flat editor and the 3D jacket
 // agree: the cut-aways (the neckline, and the sleeve cap by the underarm, where the flat
 // rectangle is bigger than the real pattern piece) and the collar and lapels.
-import { FRONT, CUFF_VENT } from './config.js';
+import { FRONT, CUFF_VENT, SIDE_PANEL } from './config.js';
 import { cutaways, bodyDims, neckSides, collarSize, collarOutline } from './model.js';
+import { cuffVentX } from './surface.js';
 
 const bbox = pts => {
   const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), x = Math.min(...xs), y = Math.min(...ys);
@@ -78,19 +79,25 @@ export function jacketZones(section, m){
   }
   if (section === 'leftSleeve' || section === 'rightSleeve')
     z.push(...cutawayZones(cut, 'Sleeve cap', 'Off the jacket: the sleeve curves away there to fit the armhole'));
-  // Snaps sit near the front edges on the waistband, and near the underarm seam on the cuffs.
+  // Snaps sit near the front edges on the waistband (Nathaniel: the left pair, as you look at
+  // the front, show the studs; the right pair the caps), and either side of the cuff vents.
   if ((section === 'front' || section === 'back') && m.waistband > 0)
     z.push({ x:0, y:H - m.waistband, w:W, h:m.waistband, label:'Waistband', kind:'band', sewable:true,
-      snaps: section === 'front' ? [-1, 1].flatMap(sd => [0.3, 0.72].map(f => [W/2 + sd*FRONT.snapFromEdge, f])) : [] });
+      snaps: section === 'front' ? [-1, 1].flatMap(sd => [0.3, 0.72].map(f => [W/2 + sd*FRONT.snapFromEdge, f, sd < 0 ? 'stud' : 'cap'])) : [] });
+  // The side panel's stretch of waistband is gathered elastic: nothing can be sewn on it.
+  if ((section === 'front' || section === 'back') && m.waistband > 0)
+    for (const x of [0, W - SIDE_PANEL.half]) z.push({ x, y:H - m.waistband, w:SIDE_PANEL.half, h:m.waistband, label:'Elastic waistband', kind:'gathers' });
   // Flags and bars do go on the waistband (Nathaniel's photos), except over the snaps by the zipper.
   if (section === 'front' && m.waistband > 0) for (const sd of [-1, 1])
     z.push({ x:W/2 + (sd < 0 ? -FRONT.snapFromEdge - 2.5 : 0), y:H - m.waistband, w:FRONT.snapFromEdge + 2.5, h:m.waistband, label:'Waistband snaps', kind:'vent' });
   // The front edges carry the (open) zipper all the way to the hem. Drawn after the waistband.
   if (section === 'front' && m.zipper > 0) z.push({ x:W/2 - m.zipper/2, y:0, w:m.zipper, h:H, label:'Zipper', kind:'opening' });
   if ((section === 'leftSleeve' || section === 'rightSleeve') && m.cuff > 0){
-    // The cuff is a band you can sew on (`sewable`); only the snapped vent by the underarm is off limits.
-    z.push({ x:0, y:H - m.cuff, w:W, h:m.cuff, label:'Cuff', kind:'band', sewable:true, snaps:[[2.5, 0.5], [W - 2.5, 0.5]] });
-    for (const x of [0, W - CUFF_VENT]) z.push({ x, y:H - m.cuff, w:CUFF_VENT, h:m.cuff, label:'Cuff snaps', kind:'vent' });
+    // The cuff is a band you can sew on (`sewable`); only the snapped vent (on the back of the
+    // arm, CUFF_VENT) is off limits. Its slit runs a little above the cuff.
+    const xv = cuffVentX(section, W), vh = Math.max(m.cuff, CUFF_VENT.len), c = CUFF_VENT.clear;
+    z.push({ x:0, y:H - m.cuff, w:W, h:m.cuff, label:'Cuff', kind:'band', sewable:true, snaps:[[xv - CUFF_VENT.snap, 0.5], [xv + CUFF_VENT.snap, 0.5]] });
+    z.push({ x:xv - c, y:H - vh, w:2*c, h:vh, label:'Cuff vent', kind:'vent', slit:xv });
   }
   cache.set(key, z);
   if (cache.size > 32) cache.delete(cache.keys().next().value);

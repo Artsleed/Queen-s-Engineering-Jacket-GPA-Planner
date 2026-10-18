@@ -14,12 +14,17 @@ const kinds = s => jacketZones(s, DEFAULT_MEAS).map(z => z.kind).sort();
 
 describe('jacketZones', () => {
   it('puts lapels, pockets, the opening, the neckline and the waistband on the front', () => {
-    expect(kinds('front')).toEqual(['band', 'cutaway', 'lapel', 'lapel', 'opening', 'pocket', 'pocket', 'vent', 'vent']);
+    expect(kinds('front')).toEqual(['band', 'cutaway', 'gathers', 'gathers', 'lapel', 'lapel', 'opening', 'pocket', 'pocket', 'vent', 'vent']);
   });
-  it('puts the collar and waistband on the back', () => expect(kinds('back')).toEqual(['band', 'collar']));
+  it("puts the collar and waistband (with the side panels' elastic) on the back", () => expect(kinds('back')).toEqual(['band', 'collar', 'gathers', 'gathers']));
   it('cuts both sides of each sleeve cap away, and has a sewable cuff with a snapped vent', () => {
-    expect(kinds('leftSleeve')).toEqual(['band', 'cutaway', 'cutaway', 'vent', 'vent']);
-    expect(kinds('rightSleeve')).toEqual(['band', 'cutaway', 'cutaway', 'vent', 'vent']);
+    expect(kinds('leftSleeve')).toEqual(['band', 'cutaway', 'cutaway', 'vent']);
+    expect(kinds('rightSleeve')).toEqual(['band', 'cutaway', 'cutaway', 'vent']);
+    // The vent is just behind the outer side (the right half on the left sleeve, the left
+    // half on the right sleeve), its slit about where a centred bar ends.
+    const W = DEFAULT_MEAS.sleeveCirc, vent = s => jacketZones(s, DEFAULT_MEAS).find(z => z.kind === 'vent');
+    expect(vent('leftSleeve').slit).toBeGreaterThan(W/2 + 5); expect(vent('leftSleeve').slit).toBeLessThan(W/2 + 8);
+    expect(vent('rightSleeve').slit).toBeLessThan(W/2 - 5); expect(vent('rightSleeve').slit).toBeGreaterThan(W/2 - 8);
     expect(jacketZones('leftSleeve', DEFAULT_MEAS).find(z => z.kind === 'band').sewable).toBe(true);
   });
   it('gives every outline zone a bounding box that holds it', () => {
