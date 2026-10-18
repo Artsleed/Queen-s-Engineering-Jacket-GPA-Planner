@@ -10,6 +10,7 @@ import { arcGeom, bandOf } from './shapes.js';
 import { dyedChenille } from './config.js';
 import { flagUrl } from './flags.js';
 import { drawSymbol } from './symbols.js';
+import { guideSpots } from './layout.js';
 
 // Photos load asynchronously; whoever owns redrawing registers a callback here.
 let onImageLoad = () => {};
@@ -643,6 +644,37 @@ export function drawPanel(ctx, s, k, o = {}){
       ctx.setLineDash([6, 4]); ctx.strokeStyle = '#FFFFFF'; ctx.strokeRect(p.x*k - pad, p.y*k - pad, dm.w*k + pad*2, dm.h*k + pad*2);
       ctx.restore();
     }
+  }
+  if (o.hints) drawHints(ctx, s, k, o.hintFont || 0);
+  ctx.restore();
+}
+// The "Where things go" guide: a see-through gold box over each spot with a tradition, and
+// a label in the middle. `minFont` (px) keeps labels readable when the editor is zoomed out.
+function drawHints(ctx, s, k, minFont){
+  const size = id => { const d = getDef(id); return { w:d?.w || 0, h:d?.h || 0 }; };
+  const { w:W } = sectionSize(s);
+  ctx.save();
+  // Flags already on the back's waistband decide whether the group bars fit beside them.
+  const bandTop = state.meas.length - state.meas.waistband;
+  const flags = state.placed.filter(p => p.section === 'back' && getDef(p.item)?.cat === 'flag' && p.y + dims(p).h > bandTop).length;
+  for (const g of guideSpots(state.meas, size, flags)){
+    if (g.section !== s) continue;
+    const pad = 0.4*k, x = g.x*k - pad, y = g.y*k - pad, w = g.w*k + 2*pad, h = g.h*k + 2*pad;
+    ctx.beginPath(); roundRectPath(ctx, x, y, w, h, Math.min(w, h)*0.12);
+    ctx.fillStyle = 'rgba(234,170,0,.22)'; ctx.fill();
+    ctx.setLineDash([0.6*k, 0.4*k]); ctx.lineWidth = Math.max(1.5, 0.15*k); ctx.strokeStyle = '#EAAA00'; ctx.stroke(); ctx.setLineDash([]);
+    // The label: a Queen's blue pill, shrunk to fit the panel if it's wider.
+    let fs = Math.max(minFont, 1.2*k);
+    const face = n => `600 ${n}px Archivo, "Helvetica Neue", Arial, sans-serif`;
+    ctx.font = face(fs); let tw = ctx.measureText(g.label).width;
+    const room = W*k - 0.6*k;
+    if (tw + fs > room){ fs *= room/(tw + fs); ctx.font = face(fs); tw = ctx.measureText(g.label).width; }
+    const pw = tw + fs, ph = fs*1.6;
+    const px = Math.min(Math.max(x + w/2 - pw/2, 0.3*k), W*k - 0.3*k - pw), py = y + h/2 - ph/2;
+    ctx.beginPath(); roundRectPath(ctx, px, py, pw, ph, ph/2);
+    ctx.fillStyle = 'rgba(0,36,82,.9)'; ctx.fill();
+    ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(g.label, px + pw/2, py + ph/2 + fs*0.05);
   }
   ctx.restore();
 }

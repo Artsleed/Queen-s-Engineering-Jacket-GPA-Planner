@@ -30,7 +30,7 @@ Jacket space is limited. The whole point of the app is deciding what fits and wh
 | Left sleeve | Year motto, then grad year (last 2 digits) |
 | Front, upper left (wearer's left) | Year crest |
 | Upper back | "QUEEN'S" (slight arch), "APPLIED", "SCIENCE". The whole block fits in 38.6 cm wide × 30.5 cm tall. |
-| Lower back | Frosh group bar at bottom left, FREC group bar at bottom right, flags between them, discipline *patch* above the flags. The patch is separate from the sleeve bar, and its details are still to come. |
+| Lower back | Flags in a row in the middle of the waistband; the discipline *patch* centred just above the waistband (separate from the sleeve bar); the frosh group bar on the left and the FREC group bar on the right, each with related bars stacked above it. The group bars go on the waistband beside the flags if there's room, else just above it (with 3 flags there isn't). From Nathaniel's photo. |
 
 **Real sizes** (Nathaniel's measurements):
 
@@ -88,7 +88,7 @@ The code is plain ES modules in `src/`. Modules share `state`, `catMap`, `curren
 | `surface.js` | Where each section folds and wears (`foldsFor`, `foldHeight`, `wearPotential`), seeded random. No DOM. |
 | `model.js` | The 3D jacket as pure geometry from the measurements (`buildJacket`), and the `cutaways`. No DOM. |
 | `zones.js` | No-go zones with exact outlines (`jacketZones`), built partly from the model; `topAt`. No DOM. |
-| `layout.js` | `traditionalSpots` / `traditionalPlacements`: where the traditional pieces go. No DOM. |
+| `layout.js` | `traditionalSpots` / `traditionalPlacements`: where the traditional pieces go; `guideSpots`: the "Where things go" boxes. No DOM. |
 | `shapes.js` | Shape geometry shared by drawing and fit: `arcGeom`, outlines, `outlinesClash`, `coverage`. No DOM. |
 | `fit.js` | `boxesClash`, `footprint`, `conflicts`, `findSpot`. No DOM. |
 | `leather.js` | Leather canvas layers, all cached: pebble grain tile, colour (mottling, rub-through, crackle, specks), surface (gloss/roughness), 3D height |
@@ -224,6 +224,7 @@ Circles, shields, scrolls and letters still collide by their bounding box, which
 
 - **Traditional pieces are fixed** (`isFixed`, Nathaniel): they can be clicked to see them, but not dragged, nudged, rotated, duplicated or removed (the keys show a toast). Only the year number's, year motto's and discipline bar's text can change (`TEXT_EDITABLE`).
 - **The list** (`#itemList`) is folders, one per picker group, closed at first; opening one closes the other. While searching, every folder with a match is open. Clicking an item chooses it (right panel); double-click or Enter adds it; Enter in the search box adds the first match. Nothing is chosen until the user picks something.
+- **Where things go** (`#btnHints`, next to the colour switch): toggles `view.hints` (`state.js`, not saved, no undo step). `drawPanel` then draws a see-through gold box with a label over each spot from `guideSpots` (the sleeve pieces except the grad year, plus the lower back as in the table above: flags, discipline patch, group bars and their related bars), on the flat view and the 3D textures; Save picture leaves them out. The flag row is as wide as the flags already on the back's waistband (3 if none), which decides whether the group-bar boxes sit on the waistband or above it.
 - **Header:** only Reset (asks first; keeps the user's own items; undoable).
 - **Make your own** (in the right panel): kind (Bar, Crest or Flag), name (also the lettering, in capitals; flags get none), colours, and stripes. No shape, size, note or photo fields (Nathaniel); the kind sets both (`KIND_SHAPE` in `catalog-ui.js`: a standard curved bar, a 7 cm circle crest, a flag-sized rectangle). Older plans' items with other shapes or photos still draw them.
 - **The list box has a fixed height** (set by the window height, not by what's open), so opening a folder or searching never moves the feedback box below it. Open folders show about 10 items and scroll inside; the count line under the list is always there (the total, or the matches while searching).

@@ -100,7 +100,7 @@ export const PRESETS = [
   { id:'trad-year-crest', cat:'patch', name:'Year crest', text:'YEAR\nCREST', w:13, h:15.6, shape:'shield', bg:'#002452', fg:'#EAAA00', border:'#9D1939', trad:true, note:"Front, over the heart (wearer's left)." },
   { id:'patch-year', cat:'patch', name:'Year number', text:froshYear(), w:12, h:9, shape:'chenille', ...BACK_LETTERS, trad:true, note:'Left sleeve, below the year motto: the last two digits of your graduating year.' },
   // `group` lists it in the picker under that group (catalog.js GROUPS).
-  { id:'sign-street', cat:'patch', name:'Street sign', text:'N MAPLE ST', ...STREET_SIGN, group:'academic', note:"Type the street on it in 'Text on this one'." },
+  { id:'sign-street', cat:'patch', name:'Street sign', text:'', ...STREET_SIGN, group:'academic', hint:'e.g. N MAPLE ST', note:"Type the street on it in 'Text on this one'." },
   // Patches
   { id:'patch-dept', cat:'patch', name:'Department crest', text:'ECE', w:7, h:7, shape:'circle', bg:'#FFFFFF', fg:'#002452', border:'#002452', note:'' },
   { id:'patch-club', cat:'patch', name:'Club patch', text:'CLUB', w:7, h:6, shape:'round', bg:'#132039', fg:'#FFFFFF', border:'#EAAA00', note:'Stand-in for a team or club patch.' },

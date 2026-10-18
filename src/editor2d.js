@@ -1,7 +1,7 @@
 /* ===================== 2D editor ===================== */
 import { SNAP_STEP } from './config.js';
 import { $, clamp, r1 } from './util.js';
-import { state, current, sel, sectionSize, dims, isFixed, FIXED_NOTE } from './state.js';
+import { state, view, current, sel, sectionSize, dims, isFixed, FIXED_NOTE } from './state.js';
 import { drawPanel } from './draw.js';
 import { pushHistory, commit, liveUpdate, undoStack, updateUndo, toast } from './pipeline.js';
 import { settle, settleNote } from './fit.js';
@@ -37,7 +37,7 @@ export function drawEditor(){
     ctx.stroke();
   }
   ctx.save(); ctx.translate(ed.ox, ed.oy);
-  drawPanel(ctx, current, k, { shadow:true, sheen:true, guides:true, conflicts:true, sel:true });
+  drawPanel(ctx, current, k, { shadow:true, sheen:true, guides:true, conflicts:true, sel:true, hints:view.hints, hintFont:11 });
   ctx.restore();
   $('#matEmpty').hidden = state.placed.length > 0;
 }

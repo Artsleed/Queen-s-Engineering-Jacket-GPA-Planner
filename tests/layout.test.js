@@ -1,6 +1,7 @@
 // Checks the traditional pieces: where a new jacket puts them, and that old plans get them.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { setState, normalize, newJacket, rebuildCatalog, state, isFixed } from '../src/state.js';
+import { setState, normalize, newJacket, rebuildCatalog, state, isFixed, getDef, sectionSize } from '../src/state.js';
+import { guideSpots } from '../src/layout.js';
 import { conflicts } from '../src/fit.js';
 import { SECTIONS, froshYear } from '../src/config.js';
 
@@ -66,5 +67,53 @@ describe('fixed pieces', () => {
     setState(newJacket()); rebuildCatalog();
     expect(state.placed.every(p => isFixed(p))).toBe(true);
     expect(isFixed({ item:'wiki-2095' })).toBe(false);
+  });
+});
+
+describe('the "Where things go" guide', () => {
+  beforeEach(() => { setState(newJacket()); rebuildCatalog(); });
+  const size = id => { const d = getDef(id); return { w:d.w, h:d.h }; };
+  const spots = () => guideSpots(state.meas, size);
+
+  it('has a box over each sleeve piece, but not the grad year', () => {
+    const boxed = ['trad-uni-motto', 'patch-pass', 'bar-discipline', 'trad-year-motto'];
+    for (const id of TRAD){
+      const p = on(id), g = spots().find(s => s.section === p.section && Math.abs(s.x - p.x) < 0.1 && Math.abs(s.y - p.y) < 0.1);
+      expect(!!g, id).toBe(boxed.includes(id));
+    }
+  });
+  it('keeps every box on its section', () => {
+    for (const g of spots()){
+      const { w, h } = sectionSize(g.section);
+      expect(g.x).toBeGreaterThanOrEqual(0); expect(g.y).toBeGreaterThanOrEqual(0);
+      expect(g.x + g.w).toBeLessThanOrEqual(w); expect(g.y + g.h).toBeLessThanOrEqual(h);
+    }
+  });
+  const low = (flags = 0) => guideSpots(state.meas, size, flags).filter(g => g.section === 'back');
+  const find = (gs, label) => gs.filter(g => g.label === label);
+  const bandTop = () => state.meas.length - state.meas.waistband;
+
+  it('puts the lower-back boxes below the back letters, without overlapping', () => {
+    const qas = { ...on('trad-qas'), ...size('trad-qas') }, gs = low();
+    expect(gs.map(g => g.label).sort()).toEqual(['Discipline patch', 'FREC group bar', 'Flags', 'Frosh group bar', 'Related bars', 'Related bars']);
+    for (const g of gs) expect(g.y).toBeGreaterThan(qas.y + qas.h);
+    for (const a of gs) for (const b of gs) if (a !== b)
+      expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y, `${a.label} / ${b.label}`).toBe(true);
+    const [frosh] = find(gs, 'Frosh group bar'), [frec] = find(gs, 'FREC group bar');
+    expect(frosh.x).toBeLessThan(frec.x); // the wearer's left is the viewer's left on the back
+  });
+  it('puts the flags on the waistband and the discipline patch just above it', () => {
+    const [f] = find(low(), 'Flags'), [p] = find(low(), 'Discipline patch');
+    expect(f.y).toBeGreaterThanOrEqual(bandTop()); expect(f.y + f.h).toBeLessThanOrEqual(state.meas.length);
+    expect(p.y + p.h).toBeLessThan(bandTop());
+  });
+  it('bumps the group bars above the waistband with 3 flags, and lets them down beside 2', () => {
+    const [three] = find(low(3), 'Frosh group bar'), [two] = find(low(2), 'Frosh group bar');
+    expect(three.y + three.h).toBeLessThanOrEqual(bandTop());
+    expect(two.y).toBeGreaterThanOrEqual(bandTop());
+    for (const n of [1, 2, 3]){
+      const [bar] = find(low(n), 'Frosh group bar'), [rel] = find(low(n), 'Related bars');
+      expect(rel.y + rel.h).toBeLessThanOrEqual(bar.y); // the related bars stack above the group bar
+    }
   });
 });

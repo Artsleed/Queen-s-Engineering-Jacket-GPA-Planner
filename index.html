@@ -113,7 +113,10 @@
   <section class="pane editor" aria-label="Section editor">
     <div class="editor-top">
       <div class="tabs" role="tablist" id="tabs"></div>
-      <div class="colour-pick" role="group" aria-label="Jacket colour" id="leatherPick"></div>
+      <div class="editor-tools">
+        <button class="btn hint-btn" id="btnHints" type="button" aria-pressed="false" title="Show where things usually go on the jacket">Where things go</button>
+        <div class="colour-pick" role="group" aria-label="Jacket colour" id="leatherPick"></div>
+      </div>
     </div>
     <div class="mat-wrap" id="matWrap">
       <canvas id="mat" tabindex="0" aria-label="Jacket section. Drag patches to move them. Delete removes, arrow keys nudge."></canvas>

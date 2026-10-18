@@ -15,6 +15,8 @@ export let state = freshState();
 export let catMap = new Map();
 export let current = 'front';
 export let sel = null;
+// Screen-only settings, not saved with the plan. `hints`: the "Where things go" boxes are showing.
+export const view = { hints:false };
 
 export const setState = s => { state = s; };
 export const setCurrent = s => { current = s; };

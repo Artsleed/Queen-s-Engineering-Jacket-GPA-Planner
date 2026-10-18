@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { SECTIONS, TEX_PX as FULL_TEX_PX, LITE } from './config.js';
 import { $, clamp } from './util.js';
-import { state, sectionSize, noGoZones, getDef, dims, textOf } from './state.js';
+import { state, view, sectionSize, noGoZones, getDef, dims, textOf } from './state.js';
 import { drawPanel, drawItem } from './draw.js';
 import { heightLayer, leatherLayer, surfaceLayer, grainCanvas } from './leather.js';
 
@@ -300,7 +300,7 @@ export function renderTexture(s){
   fit(T, cw, ch); fit(T.bump, bw, bh); fit(T.surf, cw, ch);
   for (const c of [T.mask, T.tint]) if (c.width !== cw || c.height !== ch){ c.width = cw; c.height = ch; }
   T.ctx.setTransform(1, 0, 0, 1, 0, 0);
-  drawPanel(T.ctx, s, k, { sel:true, selPad:3, selWidth:3 });
+  drawPanel(T.ctx, s, k, { sel:true, selPad:3, selWidth:3, hints:view.hints });
 
   // Every patch's footprint, in white.
   const mk = T.mask.getContext('2d'); mk.clearRect(0, 0, cw, ch);

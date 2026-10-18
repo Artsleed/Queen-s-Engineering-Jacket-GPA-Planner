@@ -1,14 +1,14 @@
 /* ===================== Tabs, inspector ===================== */
 import { SECTIONS, SECTION_LABEL, JACKET_COLOURS, LITE } from './config.js';
 import { $, clamp, r1, newId } from './util.js';
-import { state, current, sel, setCurrent, setSel, getDef, sectionSize, dims, textOf, isFixed, TEXT_EDITABLE, FIXED_NOTE, setState, newJacket, rebuildCatalog } from './state.js';
+import { state, view, current, sel, setCurrent, setSel, getDef, sectionSize, dims, textOf, isFixed, TEXT_EDITABLE, FIXED_NOTE, setState, newJacket, rebuildCatalog } from './state.js';
 import { GROUP_LABEL, groupOf } from './catalog.js';
 import { conflicts, findSpot, settle, settleNote } from './fit.js';
 import { localOutline } from './shapes.js';
 import { layoutEditor, drawEditor } from './editor2d.js';
 import { refreshAddLabel, chosenDef, drawPreview, addChosen, makerOpen, closeMaker } from './catalog-ui.js';
 import { focusSection, renderTexture } from './jacket3d.js';
-import { pushHistory, commit, liveUpdate, liveUpdateAll, toast } from './pipeline.js';
+import { pushHistory, commit, liveUpdate, liveUpdateAll, redrawEverything, toast } from './pipeline.js';
 import { scheduleSave } from './storage.js';
 
 export function buildTabs(){
@@ -44,6 +44,14 @@ wear.addEventListener('input', () => {
   state.jacket.wear = +wear.value; if (!LITE) liveUpdateAll();
 });
 wear.addEventListener('change', () => { wearDragging = false; state.jacket.wear = +wear.value; commit(); });
+// "Where things go": gold boxes on the flat view and the 3D jacket over each spot with a
+// tradition. Only changes the drawing, so no undo step and nothing saved.
+const hintsBtn = $('#btnHints');
+hintsBtn.onclick = () => {
+  view.hints = !view.hints; hintsBtn.setAttribute('aria-pressed', String(view.hints));
+  redrawEverything();
+  if (view.hints) toast('Gold boxes show where things usually go. Switch sections to see the rest. Other bars can go almost anywhere.');
+};
 // Expand the 3D view to fill the window (Esc or the button again to close).
 const viewer = document.querySelector('.viewer'), expand = $('#expand');
 const setExpanded = on => { viewer.classList.toggle('expanded', on); expand.setAttribute('aria-pressed', String(on)); expand.setAttribute('aria-label', on ? 'Close the big 3D view' : 'Expand the 3D view'); };
@@ -100,7 +108,7 @@ export function renderInspector(){
   const d = getDef(p.item), dm = dims(p), why = conflicts(p.section).get(p.uid);
   pv.hidden = false; drawPreview(d, textOf(p));
   const wireText = () => {
-    const it = $('#iText'); it.value = p.text ?? ''; it.placeholder = d.text || 'No text';
+    const it = $('#iText'); it.value = p.text ?? ''; it.placeholder = d.text || d.hint || 'No text';
     it.addEventListener('focus', () => pushHistory(), { once:true });
     it.addEventListener('input', () => { p.text = it.value === '' ? null : it.value; drawPreview(d, textOf(p)); liveUpdate(); scheduleSave(); });
   };
